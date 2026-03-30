@@ -2,10 +2,10 @@ import type React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import {
-  UserPlusIcon,
+  ClipboardDocumentListIcon,
   BeakerIcon,
   HeartIcon,
-  ChartBarIcon,
+  PresentationChartBarIcon,
   MapIcon,
   UsersIcon,
   ShieldCheckIcon
@@ -21,11 +21,11 @@ interface ModuleConfig {
 }
 
 const modules: ModuleConfig[] = [
-  { id: 'triagem', title: 'Triagem', description: 'Ponto de entrada e cadastro clínico.', icon: UserPlusIcon, path: '/triagem' },
+  { id: 'triagem', title: 'Triagem', description: 'Ponto de entrada e cadastro clínico.', icon: ClipboardDocumentListIcon, path: '/triagem' },
   { id: 'farmacia', title: 'Farmácia', description: 'Gestão e dispensação de medicamentos.', icon: BeakerIcon, path: '/farmacia' },
   { id: 'psicologia', title: 'Psicologia', description: 'Registro longitudinal de evolução mental.', icon: HeartIcon, path: '/psicologia' },
   { id: 'vacinacao', title: 'Vacinação', description: 'Controle imunológico e registro de doses.', icon: ShieldCheckIcon, path: '/vacinacao' },
-  { id: 'indicadores', title: 'Indicadores', description: 'Painéis analíticos baseados em metas SUS.', icon: ChartBarIcon, path: '/indicadores' },
+  { id: 'indicadores', title: 'Indicadores', description: 'Painéis analíticos baseados em metas SUS.', icon: PresentationChartBarIcon, path: '/indicadores' },
   { id: 'mapacelas', title: 'Mapa de Celas', description: 'Localização de internos e ocupação.', icon: MapIcon, path: '/mapa-celas' },
   { id: 'usuarios', title: 'Gestão de Usuários', description: 'Controle de acesso seguro à plataforma.', icon: UsersIcon, path: '/usuarios' },
 ];

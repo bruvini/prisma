@@ -25,6 +25,21 @@ Uma plataforma modular unificada operando na Unidade Básica de Saúde da saúde
 - Toasts neutros e componentes altamente reutilizáveis (`Button`, `Toast`, `Table`, etc).
 - Cores de uso: `#BF0413`, `#73020C`, `#B2BF50`, `#A68C5B`, `#F2F2F2`.
 
+## Deploy
+O projeto é hospedado no **Firebase Hosting**.
+- **Projeto Firebase:** `pmj-sms`
+- **Domínio de Hospedagem:** [https://prisma-sp.web.app](https://prisma-sp.web.app)
+  - *Nota: O domínio prisma.web.app encontra-se reservado por outro projeto.*
+
+### Comandos de Deploy
+```bash
+# Gerar build de produção
+npm run build
+
+# Realizar deploy para o site prisma-sp
+firebase deploy --only hosting
+```
+
 ## Instalação e Execução Local
 ```bash
 npm install

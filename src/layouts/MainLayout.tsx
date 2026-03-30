@@ -3,8 +3,8 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Header } from '../components/shared/Header';
 import { Footer } from '../components/shared/Footer';
 import { 
-  HomeIcon, UserPlusIcon, BeakerIcon, HeartIcon, 
-  ShieldCheckIcon, ChartBarIcon, MapIcon, UsersIcon 
+  HomeIcon, ClipboardDocumentListIcon, BeakerIcon, HeartIcon, 
+  ShieldCheckIcon, PresentationChartBarIcon, MapIcon, UsersIcon 
 } from '@heroicons/react/24/outline';
 import './MainLayout.css';
 
@@ -14,11 +14,11 @@ export function MainLayout() {
 
   const navLinks = [
     { name: 'Início', path: '/inicio', icon: HomeIcon },
-    { name: 'Triagem', path: '/triagem', icon: UserPlusIcon },
+    { name: 'Triagem', path: '/triagem', icon: ClipboardDocumentListIcon },
     { name: 'Farmácia', path: '/farmacia', icon: BeakerIcon },
     { name: 'Psicologia', path: '/psicologia', icon: HeartIcon },
     { name: 'Vacinação', path: '/vacinacao', icon: ShieldCheckIcon },
-    { name: 'Indicadores', path: '/indicadores', icon: ChartBarIcon },
+    { name: 'Indicadores', path: '/indicadores', icon: PresentationChartBarIcon },
     { name: 'Mapa de Celas', path: '/mapa-celas', icon: MapIcon },
     { name: 'Gestão de Usuários', path: '/usuarios', icon: UsersIcon },
   ];
