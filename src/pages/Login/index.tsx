@@ -33,6 +33,11 @@ export const Login: React.FC = () => {
 
   return (
     <div className="login-container">
+      <div className="login-hero-bg" aria-hidden="true">
+        <div className="login-hero-img"></div>
+        <div className="login-hero-gradient"></div>
+      </div>
+      
       <main className="login-wrapper">
         <div className="login-impact">
           <img src="/logo_sem_texto.png" alt="PRISMA-SP Logo Institucional" className="login-logo" />
