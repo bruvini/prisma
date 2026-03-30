@@ -70,6 +70,15 @@
 
 .footer-details {
   font-size: var(--font-size-xs);
+  display: flex;
+  flex-direction: column;
+}
+
+.footer-release-tag {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  font-family: monospace;
+  margin-top: 4px;
 }
 
 .footer-author-link {

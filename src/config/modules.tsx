@@ -1,26 +1,21 @@
 /* eslint-disable react-refresh/only-export-components */
 import type React from 'react';
-import {
-  HomeIcon,
-  ClipboardDocumentListIcon,
-  PresentationChartBarIcon,
-  MapIcon,
-  UsersIcon
-} from '@heroicons/react/24/outline';
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPills, faBrain, faSyringe } from '@fortawesome/free-solid-svg-icons';
+import { 
+  faHouse, 
+  faClipboardList, 
+  faPills, 
+  faBrain, 
+  faSyringe, 
+  faChartColumn, 
+  faMapLocationDot, 
+  faUsers 
+} from '@fortawesome/free-solid-svg-icons';
 
-// Wrappers para FontAwesome manter a mesma API prop (className) dos Heroicons
-export const PillsIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <FontAwesomeIcon icon={faPills} className={className} />
-);
-
-export const BrainIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <FontAwesomeIcon icon={faBrain} className={className} />
-);
-
-export const SyringeIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <FontAwesomeIcon icon={faSyringe} className={className} />
+// Wrapper para FontAwesome manter a mesma API prop (className) dos Heroicons
+const FaIcon: React.FC<{ icon: IconDefinition; className?: string }> = ({ icon, className }) => (
+  <FontAwesomeIcon icon={icon} className={className} />
 );
 
 export interface AppModule {
@@ -39,7 +34,7 @@ export const appModules: AppModule[] = [
     title: 'PRISMA-SP | Início',
     description: 'Ponto inicial do sistema.',
     path: '/inicio',
-    icon: HomeIcon
+    icon: (props) => <FaIcon icon={faHouse} {...props} />
   },
   {
     id: 'triagem',
@@ -47,7 +42,7 @@ export const appModules: AppModule[] = [
     title: 'PRISMA-SP | Triagem',
     description: 'Ponto de entrada e cadastro clínico.',
     path: '/triagem',
-    icon: ClipboardDocumentListIcon
+    icon: (props) => <FaIcon icon={faClipboardList} {...props} />
   },
   {
     id: 'farmacia',
@@ -55,7 +50,7 @@ export const appModules: AppModule[] = [
     title: 'PRISMA-SP | Farmácia',
     description: 'Gestão e dispensação de medicamentos.',
     path: '/farmacia',
-    icon: PillsIcon
+    icon: (props) => <FaIcon icon={faPills} {...props} />
   },
   {
     id: 'psicologia',
@@ -63,7 +58,7 @@ export const appModules: AppModule[] = [
     title: 'PRISMA-SP | Psicologia',
     description: 'Registro longitudinal de evolução mental.',
     path: '/psicologia',
-    icon: BrainIcon
+    icon: (props) => <FaIcon icon={faBrain} {...props} />
   },
   {
     id: 'vacinacao',
@@ -71,7 +66,7 @@ export const appModules: AppModule[] = [
     title: 'PRISMA-SP | Vacinação',
     description: 'Controle imunológico e registro de doses.',
     path: '/vacinacao',
-    icon: SyringeIcon
+    icon: (props) => <FaIcon icon={faSyringe} {...props} />
   },
   {
     id: 'indicadores',
@@ -79,7 +74,7 @@ export const appModules: AppModule[] = [
     title: 'PRISMA-SP | Indicadores',
     description: 'Painéis analíticos baseados em metas SUS.',
     path: '/indicadores',
-    icon: PresentationChartBarIcon
+    icon: (props) => <FaIcon icon={faChartColumn} {...props} />
   },
   {
     id: 'mapacelas',
@@ -87,7 +82,7 @@ export const appModules: AppModule[] = [
     title: 'PRISMA-SP | Mapa de Celas',
     description: 'Localização de internos e ocupação.',
     path: '/mapa-celas',
-    icon: MapIcon
+    icon: (props) => <FaIcon icon={faMapLocationDot} {...props} />
   },
   {
     id: 'usuarios',
@@ -95,6 +90,6 @@ export const appModules: AppModule[] = [
     title: 'PRISMA-SP | Gestão de Usuários',
     description: 'Controle de acesso seguro à plataforma.',
     path: '/usuarios',
-    icon: UsersIcon
+    icon: (props) => <FaIcon icon={faUsers} {...props} />
   }
 ];

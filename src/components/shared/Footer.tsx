@@ -29,6 +29,7 @@ export const Footer: React.FC = () => {
             <a href="https://www.linkedin.com/in/enfbrunovinicius/" target="_blank" rel="noreferrer" className="footer-author-link">
               Enf. Bruno Vinícius
             </a>
+            <div className="footer-release-tag">Release: {new Date().toLocaleDateString('pt-BR')} </div>
           </span>
         </div>
       </div>
