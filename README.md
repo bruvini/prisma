@@ -1,73 +1,34 @@
-# React + TypeScript + Vite
+# PRISMA-SP
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Prontuário de Registro Integrado de Saúde e Monitoramento Assistencial - Saúde Prisional**
 
-Currently, two official plugins are available:
+Uma plataforma modular unificada operando na Unidade Básica de Saúde da saúde prisional. Mantém foco profundo em humanização e operacionalidade em redes lentas através de arquitetura moderna (React + Vite + Firebase).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Módulos Principais
+1. **Triagem:** Ponto de entrada do sistema.
+2. **Farmácia:** Controle de dispensação e estoque clínico.
+3. **Psicologia:** Registros longitudinais sigilosos de saúde mental.
+4. **Vacinação:** Relatórios e carteiras de vacinação associadas.
+5. **Indicadores:** Extração de relatórios SUS.
+6. **Mapa de Celas:** Gerência de macro-localização estilo regulação de leitos.
+7. **Gestão de Usuários:** Autenticação e RBAC.
 
-## React Compiler
+## Stack
+- React 19 + TypeScript
+- Vite + React Router DOM
+- CSS Variables Baseado em Design System Neutro/Institucional (DM Sans)
+- Firebase Auth & Firestore
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Padrão Visual
+- **NUNCA usar Emojis.** 
+- **NUNCA usar ícones estigmatizantes** referente a ambiente prisional.
+- Toasts neutros e componentes altamente reutilizáveis (`Button`, `Toast`, `Table`, etc).
+- Cores de uso: `#BF0413`, `#73020C`, `#B2BF50`, `#A68C5B`, `#F2F2F2`.
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Instalação e Execução Local
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Para detalhes sobre governança institucional e papéis do sistema confira `GOVERNANCE.md` e `SECURITY.md`.

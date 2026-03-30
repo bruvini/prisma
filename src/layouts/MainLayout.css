@@ -1,0 +1,98 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--color-bg-light);
+}
+
+.layout-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar {
+  background-color: var(--color-bg-white);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: width var(--transition-normal);
+}
+
+.sidebar.collapsed {
+  width: 72px;
+}
+
+.sidebar.expanded {
+  width: 250px;
+}
+
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-4) 0;
+  gap: var(--spacing-2);
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-3) var(--spacing-4);
+  color: var(--color-text-main);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  border-left: 3px solid transparent;
+  gap: var(--spacing-4);
+  overflow: hidden;
+  white-space: nowrap;
+  margin: 0 var(--spacing-2);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+}
+
+/* Ensure border is on the item properly, without moving layout */
+.nav-link {
+  border-left: none;
+}
+
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+  padding: var(--spacing-3) 0;
+}
+
+.nav-link:hover {
+  background-color: var(--color-bg-light);
+  color: var(--color-primary-dark);
+}
+
+.nav-link.active {
+  background-color: var(--color-primary);
+  color: var(--color-bg-white);
+}
+
+.nav-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.nav-link.active .nav-icon {
+  color: var(--color-bg-white);
+}
+
+.sidebar.collapsed .nav-label {
+  display: none;
+}
+
+.sidebar.expanded .nav-label {
+  display: block;
+}
+
+.main-content {
+  flex: 1;
+  padding: var(--spacing-6);
+  overflow-y: auto;
+}
