@@ -1,17 +1,22 @@
-import type React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faGithub } from '@fortawesome/free-brands-svg-icons';
 import './Footer.css';
 
 export const Footer: React.FC = () => {
+  const currentYear = new Date().getFullYear();
+
   return (
     <footer className="app-footer">
       <div className="footer-content">
         <div className="footer-links">
-          <a href="https://github.com/bruvini/prisma" target="_blank" rel="noreferrer" className="footer-link">
-            Repositório Institucional GitHub
+          <a href="https://github.com/bruvini/prisma" target="_blank" rel="noreferrer" title="Repositório Institucional GitHub" className="footer-link-icon">
+            <FontAwesomeIcon icon={faGithub} />
           </a>
+          <span className="footer-separator">|</span>
           <a href="https://www.joinville.sc.gov.br/institucional/ses/das/dsu/ubsp/" target="_blank" rel="noreferrer" className="footer-link">
-            Página da UBSP
+            SES.DSU.UBSP
           </a>
+          <span className="footer-separator">|</span>
           <a href="https://www.sap.sc.gov.br/presidio-de-joinville/" target="_blank" rel="noreferrer" className="footer-link">
             SAP Presídio Regional
           </a>
@@ -23,8 +28,8 @@ export const Footer: React.FC = () => {
         </div>
         
         <div className="footer-info">
-          <p className="footer-copyright"><strong>PRISMA-SP</strong> &copy; {new Date().getFullYear()}</p>
-          <span className="footer-details">
+          <p className="footer-copyright">PRISMA-SP &copy; {currentYear}</p>
+          <span className="footer-author">
             Desenvolvido por{' '}
             <a href="https://www.linkedin.com/in/enfbrunovinicius/" target="_blank" rel="noreferrer" className="footer-author-link">
               Enf. Bruno Vinícius
