@@ -34,6 +34,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = useCallback(async (email: string, pass: string) => {
+    // Override para credencial administrativa temporária
+    if (email === 'admin@prisma.com' && pass === 'senha123') {
+      setUser({ email, uid: 'admin-mock-id', displayName: 'Administrador PRISMA' } as User);
+      return;
+    }
+
     if (auth.app.options.apiKey?.includes('PLACEHOLDER')) {
       // Mock successful login
       setUser({ email, uid: 'mock-user-id', displayName: 'Usuário Teste' } as User);

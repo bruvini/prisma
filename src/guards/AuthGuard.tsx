@@ -1,9 +1,9 @@
 import type React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export const AuthGuard: React.FC = () => {
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -13,10 +13,9 @@ export const AuthGuard: React.FC = () => {
     );
   }
 
-  // Provisório: Bypass auth para permitir teste do frontend sem Firebase real
-  // if (!user) {
-  //  return <Navigate to="/" replace />;
-  // }
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
 
   // Senão, prossegue nas rotas privadas
   return <Outlet />;

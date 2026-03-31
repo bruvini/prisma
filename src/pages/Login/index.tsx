@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -12,18 +12,29 @@ export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { signIn } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    // Simulação provisória de login
-    setTimeout(() => {
-      navigate('/inicio', { replace: true });
+    try {
+      // Mock validation logic check if it's the expected account
+      const isAdmin = email === 'admin@prisma.com' && password === 'senha123';
+      
+      if (isAdmin) {
+        await signIn(email, password);
+        navigate('/inicio', { replace: true });
+      } else {
+        addToast('Credenciais institucionais inválidas.', 'error');
+      }
+    } catch {
+      addToast('Erro ao realizar login.', 'error');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const handleRecuperarSenha = (e: React.MouseEvent) => {

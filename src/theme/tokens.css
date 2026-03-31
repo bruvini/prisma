@@ -26,24 +26,24 @@
   --font-family-main: "DM Sans", sans-serif;
   --font-family-alt: "Work Sans", sans-serif;
   
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-md: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 2rem;
+  --font-size-xs: 0.7rem;
+  --font-size-sm: 0.8rem;
+  --font-size-md: 0.9375rem; /* 15px */
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.15rem;
+  --font-size-2xl: 1.35rem;
+  --font-size-3xl: 1.75rem;
 
   /* Espaçamentos & Layout */
-  --spacing-1: 0.25rem;
-  --spacing-2: 0.5rem;
-  --spacing-3: 0.75rem;
-  --spacing-4: 1rem;
-  --spacing-5: 1.25rem;
-  --spacing-6: 1.5rem;
-  --spacing-8: 2rem;
-  --spacing-10: 2.5rem;
-  --spacing-12: 3rem;
+  --spacing-1: 0.15rem;
+  --spacing-2: 0.35rem;
+  --spacing-3: 0.6rem;
+  --spacing-4: 0.75rem;
+  --spacing-5: 1rem;
+  --spacing-6: 1.25rem;
+  --spacing-8: 1.5rem;
+  --spacing-10: 2rem;
+  --spacing-12: 2.5rem;
 
   /* Bordas */
   --radius-sm: 4px;
