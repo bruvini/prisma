@@ -64,170 +64,95 @@ export interface ResumoSincronizacao {
 
 /**
  * Extrai registros do texto bruto do relatório 1.8.
- * Lida com quebras de linha e repetições de cabeçalho.
+ * Estratégia orientada a blocos por prontuário com extração de cauda estrutural.
  */
 export function extrairDadosRelatorio(textoBruto: string): RegistroExtraido[] {
+  if (!textoBruto) return [];
+
   const registros: RegistroExtraido[] = [];
   const linhas = textoBruto.split('\n').map(l => l.trim()).filter(l => l !== '');
   
-  let registroAtual: Partial<RegistroExtraido> & { bufferNome?: string[]; bufferSituacao?: string[] } = {};
+  const blocos: string[][] = [];
+  let blocoAtual: string[] = [];
 
-  const regexProntuario = /^\d{6,10}$/; // Exemplo: 123456
+  // 1. Segmentação em blocos por prontuário
+  // Aceita: "474943 -", "474943-", "474943 ", etc.
+  const regexInicioBloco = /^(\d{5,10})\s*[-—–]?\s*/;
 
-  for (let i = 0; i < linhas.length; i++) {
-    const linha = linhas[i];
-
-    // Ignora cabeçalhos institucionais conhecidos
+  for (const linha of linhas) {
+    // Ignora ruído de cabeçalho/rodapé
     if (linha.includes('SISTEMA DE GESTÃO PRISIONAL') || 
         linha.includes('Relatório 1.8') || 
-        linha.includes('LISTAGEM DE INTERNOS ALOCADOS')) {
+        linha.includes('LISTAGEM DE INTERNOS ALOCADOS') ||
+        linha.includes('Secretaria de Estado') ||
+        linha.includes('Departamento de Polícia') ||
+        linha.includes('Pág.:')) {
       continue;
     }
 
-    // Se a linha começa com o prontuário, iniciamos um novo registro
-    const partes = linha.split(/\s+/);
-    if (regexProntuario.test(partes[0])) {
-      // Salva o anterior se estiver completo
-      if (registroAtual.prontuario) {
-        finalizarRegistro(registroAtual, registros);
-      }
-
-      // Reinicia
-      registroAtual = {
-        prontuario: partes[0],
-        bufferNome: [],
-        bufferSituacao: [],
-      };
-
-      // Tenta extrair o que sobrar da linha
-      // No relatório 1.8, geralmente o nome segue o prontuário na mesma linha
-      if (partes.length > 1) {
-        // Encontra onde começa a Ala (M, F ou N I)
-        const indexAla = partes.findIndex((p, idx) => idx > 0 && (p === 'M' || p === 'F' || (p === 'N' && partes[idx+1] === 'I')));
-        
-        if (indexAla !== -1) {
-          registroAtual.bufferNome = partes.slice(1, indexAla);
-          
-          // Mapeia Ala
-          if (partes[indexAla] === 'M') registroAtual.ala = Ala.MASCULINA;
-          else if (partes[indexAla] === 'F') registroAtual.ala = Ala.FEMININA;
-          else {
-            registroAtual.ala = Ala.NAO_INFORMADA;
-            // partes[indexAla] é 'N', partes[indexAla+1] é 'I'
-          }
-
-          // A estrutura após a ala costuma ser: GAL BLOCO PISO TIPO RESIDENCIA
-          // Mas como os nomes e situações podem quebrar linha, o parser precisa ser astuto.
-          // Para esta versão, vamos assumir que o restande da linha contém os dados residenciais
-          // se ela for longa o suficiente, ou deixaremos para as próximas linhas.
-        } else {
-          // Ala não encontrada na primeira linha, o resto é nome
-          registroAtual.bufferNome = partes.slice(1);
-        }
-      }
-    } else if (registroAtual.prontuario) {
-      // Se não é prontuário e temos um registro em aberto, a linha pode ser:
-      // 1. Continuação do nome
-      // 2. Situação
-      // 3. Bloco de localização (Ala, Gal, Bloco, Piso, Tipo, Res)
-
-      // Se a linha contém marcadores de localização (ex: Galeria/Bloco/Piso)
-      // costumam ser números curtos ou letras.
-      // Uma heurística comum é procurar o Tipo Residência
-      const tipoIdentificado = identificarTipoResidencia(linha);
-      
-      if (tipoIdentificado) {
-        registroAtual.tipoResidencia = tipoIdentificado;
-        // Se identificou o tipo, esta linha provavelmente contém a localização completa
-        // Tentamos extrair: Ala Gal Bloco Piso Tipo Resid
-        // Mas a Ala já pode ter sido pega.
-        processarLinhaLocalizacao(linha, registroAtual);
-      } else {
-        // Se ainda não temos a localização, e não identificamos o tipo,
-        // pode ser parte da situação ou continuação do nome.
-        // Geralmente nomes são MAIÚSCULOS, situações são Capitalizadas ou mistas.
-        if (linha === linha.toUpperCase() && !/\d/.test(linha)) {
-          registroAtual.bufferNome?.push(linha);
-        } else {
-          registroAtual.bufferSituacao?.push(linha);
-        }
-      }
+    if (regexInicioBloco.test(linha)) {
+      if (blocoAtual.length > 0) blocos.push(blocoAtual);
+      blocoAtual = [linha];
+    } else if (blocoAtual.length > 0) {
+      blocoAtual.push(linha);
     }
   }
+  if (blocoAtual.length > 0) blocos.push(blocoAtual);
 
-  // Salva o último
-  if (registroAtual.prontuario) {
-    finalizarRegistro(registroAtual, registros);
+  // 2. Processamento de cada bloco
+  for (const bloco of blocos) {
+    const registro = processarBloco(bloco);
+    if (registro) {
+      registros.push(registro);
+    }
   }
 
   return registros;
 }
 
-function identificarTipoResidencia(linha: string): TipoResidencia | null {
-  const l = linha.toUpperCase();
-  if (l.includes('CELA ESPECIAL')) return TipoResidencia.CELA_ESPECIAL;
-  if (l.includes('ALOJAMENTO INTERNO')) return TipoResidencia.ALOJAMENTO_INTERNO;
-  if (l.includes('TRIAGEM PNE')) return TipoResidencia.TRIAGEM_PNE;
-  if (l.includes('PRISÃO CIVIL')) return TipoResidencia.PRISAO_CIVIL;
-  if (l.includes('SEGURO')) return TipoResidencia.SEGURO;
-  if (l.includes('TRIAGEM')) return TipoResidencia.TRIAGEM;
-  if (l.includes('CELA')) return TipoResidencia.CELA;
-  if (l.includes('ADAPTAÇÃO')) return TipoResidencia.ADAPTACAO;
-  if (l.includes('LGBT')) return TipoResidencia.LGBT;
-  return null;
-}
+/**
+ * Processa um bloco de linhas pertencentes a um único prontuário.
+ */
+function processarBloco(linhas: string[]): RegistroExtraido | null {
+  if (linhas.length === 0) return null;
 
-function processarLinhaLocalizacao(linha: string, registro: Partial<RegistroExtraido>) {
-  const partes = linha.split(/\s+/).map(p => p.trim());
-  
-  // Exemplo de linha: M 01 A T CELA 005
-  // Ala (M), Galeria (01), Bloco (A), Piso (T), Tipo (CELA), Resid (005)
-  // Lembre-se: Galeria IPEN -> Pavilhão PRISMA, Bloco IPEN -> Galeria PRISMA
-  
-  // Tenta encontrar a Ala se não tiver
-  const indexAla = partes.findIndex(p => p === 'M' || p === 'F' || p === 'N');
-  let offset = 0;
-  if (indexAla !== -1) {
-    if (partes[indexAla] === 'M') registro.ala = Ala.MASCULINA;
-    else if (partes[indexAla] === 'F') registro.ala = Ala.FEMININA;
-    else if (partes[indexAla] === 'N' && partes[indexAla+1] === 'I') registro.ala = Ala.NAO_INFORMADA;
-    offset = (partes[indexAla] === 'N') ? indexAla + 2 : indexAla + 1;
-  }
+  const primeiraLinha = linhas[0];
+  // Captura Prontuário e o que sobrar
+  const correspondencia = primeiraLinha.match(/^(\d{5,10})\s*[-—–]?\s*(.*)/);
+  if (!correspondencia) return null;
 
-  // Se temos as partes restantes (Gal Bloco Piso Tipo Res)
-  const restantes = partes.slice(offset);
-  if (restantes.length >= 4) {
-    registro.pavilhao = restantes[0]; // Galeria IPEN
-    registro.galeria = restantes[1];  // Bloco IPEN
-    registro.piso = restantes[2];
-    // O tipo já foi identificado pela função chamadora ou podemos confirmar aqui
-    // A residência costuma ser o último elemento
-    registro.numeroResidencia = restantes[restantes.length - 1];
-  }
-}
+  const prontuario = correspondencia[1];
+  let textoRestante = (correspondencia[2] || '') + ' ' + linhas.slice(1).join(' ');
+  textoRestante = textoRestante.replace(/\s+/g, ' ').trim();
 
-function finalizarRegistro(reg: any, lista: RegistroExtraido[]) {
-  if (!reg.prontuario) return;
+  // 3. Extração da cauda estrutural (Direita para Esquerda)
+  const partes = textoRestante.split(' ');
+  if (partes.length < 6) return null;
 
-  const nomeCompleto = (reg.bufferNome || []).join(' ').trim();
-  const situacaoIpen = (reg.bufferSituacao || []).join(' ').trim();
+  const infoLocalizacao = extrairCaudaLocalizacao(partes);
+  if (!infoLocalizacao) return null;
 
-  // Consolida o registro
-  // Garante valores padrão caso falte algo
+  const { 
+    ala, pavilhao, galeria, piso, tipoResidencia, numeroResidencia, indexInicioCauda 
+  } = infoLocalizacao;
+
+  // 4. Separação de Nome e Situação
+  const textoNomeSituacao = partes.slice(0, indexInicioCauda).join(' ').trim();
+  const { nome, situacao } = separarNomeSituacao(textoNomeSituacao);
+
   const extraido: RegistroExtraido = {
-    prontuario: reg.prontuario,
-    nomeCompleto: nomeCompleto || 'NOME NÃO IDENTIFICADO',
-    situacaoIpen: situacaoIpen || 'SITUAÇÃO NÃO INFORMADA',
-    ala: reg.ala || Ala.NAO_INFORMADA,
-    pavilhao: reg.pavilhao || '?',
-    galeria: reg.galeria || '?',
-    piso: reg.piso || '?',
-    tipoResidencia: reg.tipoResidencia || TipoResidencia.CELA,
-    numeroResidencia: reg.numeroResidencia || '?',
-    chaveResidencial: '', // Será preenchido abaixo
+    prontuario,
+    nomeCompleto: nome,
+    situacaoIpen: situacao,
+    ala,
+    pavilhao,
+    galeria,
+    piso,
+    tipoResidencia,
+    numeroResidencia,
+    chaveResidencial: '',
   };
 
-  // Gera a chave residential para bater com o banco
   extraido.chaveResidencial = gerarChaveUnica({
     ala: extraido.ala,
     pavilhao: extraido.pavilhao,
@@ -239,8 +164,119 @@ function finalizarRegistro(reg: any, lista: RegistroExtraido[]) {
     regime: 'NAO_INFORMADO',
   } as any);
 
-  lista.push(extraido);
+  return extraido;
 }
+
+/**
+ * Extrai a localização lendo a cauda do registro.
+ */
+function extrairCaudaLocalizacao(partes: string[]) {
+  const tiposCompostos = [
+    { texto: 'CELA ESPECIAL', valor: TipoResidencia.CELA_ESPECIAL },
+    { texto: 'ALOJAMENTO INTERNO', valor: TipoResidencia.ALOJAMENTO_INTERNO },
+    { texto: 'TRIAGEM PNE', valor: TipoResidencia.TRIAGEM_PNE },
+    { texto: 'PRISÃO CIVIL', valor: TipoResidencia.PRISAO_CIVIL },
+  ];
+
+  const tiposSimples: Record<string, TipoResidencia> = {
+    'SEGURO': TipoResidencia.SEGURO,
+    'TRIAGEM': TipoResidencia.TRIAGEM,
+    'CELA': TipoResidencia.CELA,
+    'ADAPTAÇÃO': TipoResidencia.ADAPTACAO,
+    'ADAPTACAO': TipoResidencia.ADAPTACAO,
+    'LGBT': TipoResidencia.LGBT,
+  };
+
+  const len = partes.length;
+  const numeroResidencia = partes[len - 1];
+  
+  let tipoResidencia: TipoResidencia | null = null;
+  let indexTipo = -1;
+
+  // Tenta tipos compostos (bi-gramas)
+  if (len >= 3) {
+    const biGram = (partes[len - 3] + ' ' + partes[len - 2]).toUpperCase();
+    for (const tc of tiposCompostos) {
+      if (biGram.includes(tc.texto)) {
+        tipoResidencia = tc.valor;
+        indexTipo = len - 3;
+        break;
+      }
+    }
+  }
+
+  // Tenta tipos simples
+  if (!tipoResidencia && len >= 2) {
+    const uniGram = partes[len - 2].toUpperCase();
+    if (tiposSimples[uniGram]) {
+      tipoResidencia = tiposSimples[uniGram];
+      indexTipo = len - 2;
+    }
+  }
+
+  if (!tipoResidencia || indexTipo < 4) return null;
+
+  const piso = partes[indexTipo - 1];
+  const galeriaPoisBlocoIpen = partes[indexTipo - 2];
+  const pavilhaoPoisGaleriaIpen = partes[indexTipo - 3];
+  const alaIpen = partes[indexTipo - 4];
+
+  let ala: Ala = Ala.NAO_INFORMADA;
+  if (alaIpen === 'M') ala = Ala.MASCULINA;
+  else if (alaIpen === 'F') ala = Ala.FEMININA;
+  else if (alaIpen === 'N') ala = Ala.NAO_INFORMADA;
+
+  return {
+    ala,
+    pavilhao: pavilhaoPoisGaleriaIpen,
+    galeria: galeriaPoisBlocoIpen,
+    piso,
+    tipoResidencia,
+    numeroResidencia,
+    indexInicioCauda: indexTipo - 4
+  };
+}
+
+/**
+ * Separa Nome de Situação usando padrões prioritários.
+ */
+function separarNomeSituacao(texto: string): { nome: string; situacao: string } {
+  const padroesSituacao = [
+    'RECOLHIDO(A)',
+    'RECOLHIDO -',
+    'RECOLHIDO',
+    'RECEBENDO VISITAÇÃO',
+    'RECEBENDO VISITACAO',
+    'SAÍDA PARA ESTUDO',
+    'TRABALHO INTERNO',
+    'TRABALHO EXTERNO',
+    'EXAME EXTERNO',
+    'INTERNAÇÃO HOSPITALAR',
+  ];
+
+  let indexMinimo = texto.length;
+
+  for (const padrao of padroesSituacao) {
+    const idx = texto.toUpperCase().indexOf(padrao);
+    // Priorizamos a primeira ocorrência de qualquer padrão de situação
+    if (idx !== -1 && idx < indexMinimo) {
+      indexMinimo = idx;
+    }
+  }
+
+  if (indexMinimo === texto.length) {
+    return { nome: texto.trim(), situacao: 'SITUAÇÃO NÃO IDENTIFICADA' };
+  }
+
+  const nome = texto.substring(0, indexMinimo).trim();
+  const situacao = texto.substring(indexMinimo).trim();
+
+  // Limpeza final para evitar nomes que terminam em hífen espúrio
+  const nomeLimpo = nome.replace(/\s+-\s*$/, '').trim();
+
+  return { nome: nomeLimpo, situacao };
+}
+
 
 // ---------------------------------------------------------------------------
 // Lógica de Reconciliação (Cálculo de Impacto)

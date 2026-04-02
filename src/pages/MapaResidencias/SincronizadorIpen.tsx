@@ -22,6 +22,7 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
   const { addToast } = useToast();
 
   const [textoBruto, setTextoBruto] = useState('');
+  const [extraidos, setExtraidos] = useState<any[]>([]);
   const [impacto, setImpacto] = useState<ImpactoSincronizacao | null>(null);
   const [analisando, setAnalisando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
@@ -36,11 +37,12 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
 
     setAnalisando(true);
     try {
-      const extraidos = extrairDadosRelatorio(textoBruto);
-      if (extraidos.length === 0) {
+      const regs = extrairDadosRelatorio(textoBruto);
+      if (regs.length === 0) {
         throw new Error('Nenhum registro válido identificado no texto colado.');
       }
-      const resultado = await analisarImpactoSincronizacao(extraidos);
+      setExtraidos(regs);
+      const resultado = await analisarImpactoSincronizacao(regs);
       setImpacto(resultado);
     } catch (erro: any) {
       addToast(erro.message || 'Erro ao analisar relatório.', 'error');
@@ -68,8 +70,8 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
   const calcularResumo = (): ResumoSincronizacao | null => {
     if (!impacto) return null;
     return {
-      totalLido: extrairDadosRelatorio(textoBruto).length,
-      totalValidos: extrairDadosRelatorio(textoBruto).length - impacto.conflitos.length,
+      totalLido: extraidos.length,
+      totalValidos: extraidos.length - impacto.conflitos.length,
       totalNovos: impacto.novos.length,
       totalReativados: impacto.reativados.length,
       totalRealocados: impacto.realocados.length,
@@ -139,6 +141,38 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
                 <div className="mr-sync-stat">
                   <span className="mr-sync-stat-value mr-sync-stat-warning">{resumo?.totalConflitos}</span>
                   <span className="mr-sync-stat-label">Conflitos</span>
+                </div>
+              </div>
+
+              <div className="mr-sync-validation">
+                <h4>Validação de Amostra (Primeiros 3 registros)</h4>
+                <div className="mr-sync-table-scroll">
+                  <table className="mr-sync-validation-table">
+                    <thead>
+                      <tr>
+                        <th>Prontuário</th>
+                        <th>Nome</th>
+                        <th>Situação</th>
+                        <th>Ala</th>
+                        <th>Loc. (P/G/P)</th>
+                        <th>Tipo</th>
+                        <th>Res.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {extraidos.slice(0, 3).map(reg => (
+                        <tr key={reg.prontuario}>
+                          <td>{reg.prontuario}</td>
+                          <td className="mr-sync-td-name">{reg.nomeCompleto}</td>
+                          <td className="mr-sync-td-situ">{reg.situacaoIpen}</td>
+                          <td>{reg.ala === 'MASCULINA' ? 'M' : reg.ala === 'FEMININA' ? 'F' : 'N'}</td>
+                          <td>{reg.pavilhao}/{reg.galeria}/{reg.piso}</td>
+                          <td><span className="mr-sync-badge-tipo">{reg.tipoResidencia}</span></td>
+                          <td><strong>{reg.numeroResidencia}</strong></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 

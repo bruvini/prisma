@@ -685,5 +685,77 @@
 }
 
 .mr-modal-lg {
-  max-width: 900px;
+  max-width: 1000px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tabela de Validação de Sincronização
+ * --------------------------------------------------------------------------- */
+
+.mr-sync-validation {
+  margin-bottom: var(--spacing-6);
+  padding: var(--spacing-4);
+  background: #fdfdfd;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.mr-sync-validation h4 {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-main);
+  margin-bottom: var(--spacing-3);
+  letter-spacing: 0.05em;
+}
+
+.mr-sync-table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.mr-sync-validation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.mr-sync-validation-table th {
+  background: var(--color-bg-light);
+  padding: var(--spacing-3);
+  text-align: left;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.mr-sync-validation-table td {
+  padding: var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-main);
+  vertical-align: top;
+}
+
+.mr-sync-td-name {
+  font-weight: 600;
+  color: var(--color-primary);
+  max-width: 200px;
+}
+
+.mr-sync-td-situ {
+  color: #666;
+  font-style: italic;
+  max-width: 250px;
+}
+
+.mr-sync-badge-tipo {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
 }
