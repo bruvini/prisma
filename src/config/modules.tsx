@@ -77,11 +77,11 @@ export const appModules: AppModule[] = [
     icon: (props) => <FaIcon icon={faChartColumn} {...props} />
   },
   {
-    id: 'mapacelas',
-    name: 'Mapa de Celas',
-    title: 'PRISMA-SP | Mapa de Celas',
-    description: 'Localização de internos e ocupação.',
-    path: '/mapa-celas',
+    id: 'residencias',
+    name: 'Mapa de Residências',
+    title: 'PRISMA-SP | Mapa de Residências',
+    description: 'Cadastro e localização de residências internas.',
+    path: '/residencias',
     icon: (props) => <FaIcon icon={faMapLocationDot} {...props} />
   },
   {

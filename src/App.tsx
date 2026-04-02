@@ -6,6 +6,7 @@ import { AuthGuard } from './guards/AuthGuard';
 import { Login } from './pages/Login';
 import { Home } from './pages/Home';
 import { Placeholder } from './components/ui/Placeholder';
+import { MapaResidencias } from './pages/MapaResidencias';
 import { appModules } from './config/modules';
 
 // Placeholder genérico para exibir módulos pela config
@@ -45,7 +46,12 @@ function App() {
           <Route element={<AuthGuard />}>
             <Route element={<MainLayout />}>
               <Route path="/inicio" element={<Home />} />
-              {appModules.filter(m => m.id !== 'inicio').map(m => (
+              {/* Módulo Mapa de Residências */}
+              <Route path="/residencias" element={<MapaResidencias />} />
+              {/* Redirect de compatibilidade da rota antiga */}
+              <Route path="/mapa-celas" element={<Navigate to="/residencias" replace />} />
+              {/* Demais módulos ainda como placeholder */}
+              {appModules.filter(m => !['inicio', 'residencias'].includes(m.id)).map(m => (
                 <Route
                   key={m.id}
                   path={m.path.replace('/', '')}
