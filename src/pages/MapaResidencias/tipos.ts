@@ -31,10 +31,13 @@ export type Ala = typeof Ala[keyof typeof Ala];
 export const TipoResidencia = {
   SEGURO:             'SEGURO',
   TRIAGEM:            'TRIAGEM',
+  TRIAGEM_PNE:        'TRIAGEM_PNE',
   CELA_ESPECIAL:      'CELA_ESPECIAL',
   CELA:               'CELA',
   ALOJAMENTO_INTERNO: 'ALOJAMENTO_INTERNO',
   ADAPTACAO:          'ADAPTACAO',
+  LGBT:               'LGBT',
+  PRISAO_CIVIL:       'PRISAO_CIVIL',
 } as const;
 export type TipoResidencia = typeof TipoResidencia[keyof typeof TipoResidencia];
 
@@ -60,10 +63,13 @@ export const AlaLabel: Record<Ala, string> = {
 export const TipoResidenciaLabel: Record<TipoResidencia, string> = {
   SEGURO:             'Seguro',
   TRIAGEM:            'Triagem',
+  TRIAGEM_PNE:        'Triagem PNE',
   CELA_ESPECIAL:      'Cela Especial',
   CELA:               'Cela',
   ALOJAMENTO_INTERNO: 'Alojamento Interno',
   ADAPTACAO:          'Adaptação',
+  LGBT:               'LGBT',
+  PRISAO_CIVIL:       'Prisão Civil',
 };
 
 export const RegimeLabel: Record<Regime, string> = {
@@ -127,6 +133,89 @@ export type FormDataResidencia = Omit<
   | 'atualizadoPor' 
   | 'inativadoEm'
 >;
+
+// ---------------------------------------------------------------------------
+// Novas Entidades para Sincronização e Operação
+// ---------------------------------------------------------------------------
+
+/**
+ * Representa a pessoa custodiada.
+ * Coleção: `internos`
+ * Unicidade: `prontuario`
+ */
+export interface Interno {
+  id: string;
+  prontuario: string;       // Chave de negócio (I-PEN)
+  nomeCompleto: string;
+  situacaoAtual: string;    // Texto original do I-PEN
+  statusSistema: 'ATIVO' | 'INATIVO';
+  
+  // Referências de localização atual
+  detencaoAtualId: string | null;
+  residenciaAtualId: string | null;
+  
+  // Datas do período atual
+  dataEntradaAtual: Date | null;
+  dataSaidaAtual: Date | null;
+
+  // Auditoria
+  criadoEm: Date;
+  atualizadoEm: Date;
+  criadoPor: string;
+}
+
+/**
+ * Ciclo de vida de uma passagem pelo sistema.
+ * Coleção: `detencoes`
+ */
+export interface Detencao {
+  id: string;
+  internoId: string;
+  numeroDetencao: number;   // 1, 2, 3...
+  status: 'ATIVA' | 'ENCERRADA';
+  iniciadaEm: Date;
+  encerradaEm: Date | null;
+  
+  // Metadados da origem (ex.: Sincronização 1.8)
+  origem: string;
+  snapshotSituacaoInicial: string;
+
+  criadoEm: Date;
+}
+
+/**
+ * Histórico de trocas de residência dentro de uma detenção.
+ * Coleção: `movimentacoes`
+ */
+export interface Movimentacao {
+  id: string;
+  internoId: string;
+  detencaoId: string;
+  ordemNaDetencao: number;
+  
+  residenciaOrigemId: string | null; // null se for entrada inicial
+  residenciaDestinoId: string | null; // null se for saída/inativação
+  
+  tipoMovimentacao: 'ENTRADA' | 'MOVIMENTACAO_INTERNA' | 'SAIDA' | 'REATIVACAO';
+  origemSincronizacao: boolean;
+  situacaoIpenOriginal: string;
+  
+  registradaEm: Date;
+  criadoPor: string;
+}
+
+/**
+ * Link ativo entre interno e residência.
+ * Coleção: `ocupacoesAtuais`
+ */
+export interface OcupacaoAtual {
+  id: string;
+  internoId: string;
+  residenciaId: string;
+  detencaoId: string;
+  iniciadaEm: Date;
+  ativa: boolean;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers

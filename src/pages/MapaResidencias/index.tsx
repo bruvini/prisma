@@ -15,8 +15,6 @@ import {
   cadastrarResidencia,
   atualizarResidencia,
   inativarResidencia,
-  importarResidenciasCSV,
-  type ResultadoImportacao,
 } from './servicoResidencias';
 import {
   Ala,
@@ -27,6 +25,7 @@ import {
   RegimeLabel,
 } from './tipos';
 import type { Residencia, FormDataResidencia } from './tipos';
+import { SincronizadorIpen } from './SincronizadorIpen';
 import './MapaResidencias.css';
 
 // ---------------------------------------------------------------------------
@@ -107,7 +106,6 @@ export const MapaResidencias: React.FC = () => {
 
   const [residencias, setResidencias] = useState<Residencia[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [importando, setImportando] = useState(false);
   const [filtros, setFiltros] = useState<EstadoFiltros>(FILTROS_VAZIOS);
 
   // Estados de Modal (Cadastro/Edição)
@@ -120,6 +118,9 @@ export const MapaResidencias: React.FC = () => {
   // Estados de Exclusão
   const [alvoExclusao, setAlvoExclusao] = useState<Residencia | null>(null);
   const [excluindo, setExcluindo] = useState(false);
+
+  // Estado de Sincronização
+  const [sincronizadorAberto, setSincronizadorAberto] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Busca de Dados
@@ -140,39 +141,6 @@ export const MapaResidencias: React.FC = () => {
   useEffect(() => {
     carregarResidencias();
   }, [carregarResidencias]);
-
-  // ---------------------------------------------------------------------------
-  // Ações Administrativas
-  // ---------------------------------------------------------------------------
-
-  const manipularImportacao = async () => {
-    const confirmacao = window.confirm('Deseja iniciar a carga inicial de residências a partir do CSV institucional? Registros duplicados serão ignorados.');
-    if (!confirmacao) return;
-
-    setImportando(true);
-    try {
-      const response = await fetch('/Residências - Residencias.csv');
-      if (!response.ok) throw new Error('Arquivo CSV não encontrado em /public.');
-      
-      const conteudo = await response.text();
-      const uid = user?.uid || 'admin-batch';
-      
-      const resultado: ResultadoImportacao = await importarResidenciasCSV(conteudo, uid);
-      
-      if (resultado.erros.length > 0) {
-        console.warn('Erros na importação:', resultado.erros);
-        addToast(`Importação concluída com ${resultado.erros.length} avisos. Verifique o console.`, 'info');
-      } else {
-        addToast(`Carga inicial concluída: ${resultado.totalImportado} novos, ${resultado.totalIgnorado} ignorados.`, 'success');
-      }
-      
-      await carregarResidencias();
-    } catch (erro: any) {
-      addToast(erro.message || 'Falha na carga dos dados.', 'error');
-    } finally {
-      setImportando(false);
-    }
-  };
 
   // ---------------------------------------------------------------------------
   // Lógica de Filtros
@@ -606,7 +574,7 @@ export const MapaResidencias: React.FC = () => {
         <div className="mr-page-header-text">
           <h1 className="mr-page-title">Mapa de Residências</h1>
           <p className="mr-page-subtitle">
-            Gestão da estrutura física do sistema.
+            Gestão da estrutura física e alocação operacional.
             {!carregando && (
               <span className="mr-count">
                 {' '}({residenciasFiltradas.length} {residenciasFiltradas.length === 1 ? 'registro' : 'registros'})
@@ -618,12 +586,10 @@ export const MapaResidencias: React.FC = () => {
           {(user?.email === 'admin@prisma.com' || user?.email === 'admin@google.com') && (
             <button 
               className="mr-btn mr-btn-ghost" 
-              onClick={manipularImportacao}
-              disabled={importando || carregando}
-              title="Importar carga inicial de residências"
+              onClick={() => setSincronizadorAberto(true)}
+              title="Sincronizar relatório de alocados do I-PEN"
             >
-              {importando ? <span className="mr-spinner-sm" /> : null}
-              {importando ? 'Importando...' : 'Carga Inicial (CSV)'}
+              Sincronizar I-PEN
             </button>
           )}
           <button className="mr-btn mr-btn-primary" onClick={abrirModalNovo} id="btn-nova-residencia">
@@ -636,6 +602,12 @@ export const MapaResidencias: React.FC = () => {
       {renderizarTabela()}
       {renderizarModal()}
       {renderizarModalExclusao()}
+      
+      <SincronizadorIpen 
+        aberto={sincronizadorAberto}
+        aoFechar={() => setSincronizadorAberto(false)}
+        aoConcluir={carregarResidencias}
+      />
     </div>
   );
 };
