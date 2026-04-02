@@ -62,7 +62,6 @@ function firebaseToResidencia(id: string, data: Record<string, unknown>): Reside
 
 /** 
  * Busca todas as residências ativas ordenadas pela chave de ordenação.
- * Implementa tratamento de erro robusto.
  */
 export async function buscarResidencias(): Promise<Residencia[]> {
   try {
@@ -76,6 +75,32 @@ export async function buscarResidencias(): Promise<Residencia[]> {
   } catch (erro) {
     console.error('[Service] Erro ao buscar residências:', erro);
     throw new Error('Falha ao conectar com o banco de dados das residências.');
+  }
+}
+
+/**
+ * Busca o snapshot operacional completo para o mapa.
+ * Retorna as residências, ocupações ativas e os dados básicos dos internos.
+ */
+export async function buscarVisaoOperacional() {
+  try {
+    // 1. Busca todas as residências ativas
+    const residencias = await buscarResidencias();
+
+    // 2. Busca todas as ocupações ativas
+    const qOcup = query(collection(db, 'ocupacoesAtuais'), where('ativa', '==', true));
+    const snapOcup = await getDocs(qOcup);
+    const ocupacoes = snapOcup.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // 3. Busca todos os internos ativos
+    const qInternos = query(collection(db, 'internos'), where('statusSistema', '==', 'ATIVO'));
+    const snapInternos = await getDocs(qInternos);
+    const internos = snapInternos.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    return { residencias, ocupacoes, internos };
+  } catch (erro) {
+    console.error('[Service] Erro ao buscar visão operacional:', erro);
+    throw new Error('Falha ao carregar dados operacionais do mapa.');
   }
 }
 
@@ -350,3 +375,75 @@ export async function importarResidenciasCSV(
     throw erro;
   }
 }
+
+/**
+ * Cadastra residências provisórias em lote para resolver conflitos de sincronização.
+ * Implementa verificação de existência para evitar duplicidade.
+ */
+export async function cadastrarResidenciasProvisoriasLote(
+  conflitos: {
+    ala: Ala;
+    pavilhao: string;
+    galeria: string;
+    piso: string;
+    tipoResidencia: TipoResidencia;
+    numeroResidencia: string;
+    quantidadeInternosDetectados: number;
+    chaveResidencial: string;
+  }[],
+  idUsuario: string
+): Promise<void> {
+  const batch = writeBatch(db);
+  const agora = serverTimestamp();
+  
+  // Busca chaves existentes para dupla verificação (safety)
+  const snapExistentes = await getDocs(query(collection(db, NOME_COLECAO), where('ativo', '==', true)));
+  const chavesExistentes = new Set(snapExistentes.docs.map(d => d.data().chaveUnica));
+
+  let cadastrados = 0;
+
+  for (const conf of conflitos) {
+    if (chavesExistentes.has(conf.chaveResidencial)) continue;
+
+    const docRef = doc(collection(db, NOME_COLECAO));
+    const dadosForm: FormDataResidencia = {
+      ala: conf.ala,
+      pavilhao: conf.pavilhao,
+      galeria: conf.galeria,
+      piso: conf.piso,
+      tipoResidencia: conf.tipoResidencia,
+      numeroResidencia: conf.numeroResidencia,
+      capacidade: 0,
+      regime: Regime.NAO_INFORMADO,
+    };
+
+    const rotuloExibicao = gerarRotuloExibicao(dadosForm);
+
+    batch.set(docRef, {
+      ...dadosForm,
+      chaveUnica: conf.chaveResidencial,
+      rotuloExibicao,
+      chaveOrdenacao: conf.chaveResidencial,
+      ativo: true,
+      criadoEm: agora,
+      atualizadoEm: agora,
+      criadoPor: idUsuario,
+      atualizadoPor: idUsuario,
+      
+      // Metadados Provisórios
+      cadastroProvisorio: true,
+      pendenteRevisao: true,
+      origemCadastro: 'RELATORIO_IPEN_1_8',
+      criadoViaSincronizador: true,
+      quantidadeInternosDetectados: conf.quantidadeInternosDetectados,
+    });
+    
+    cadastrados++;
+    chavesExistentes.add(conf.chaveResidencial);
+  }
+
+  if (cadastrados > 0) {
+    await batch.commit();
+  }
+}
+

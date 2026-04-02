@@ -56,6 +56,19 @@ export interface ResumoSincronizacao {
   totalInativados: number;
   totalSemMudanca: number;
   totalConflitos: number;
+  totalResidenciasAusentes: number; // Agrupado
+}
+
+export interface ConflitoResidencialAgrupado {
+  chaveResidencial: string;
+  ala: Ala;
+  pavilhao: string;
+  galeria: string;
+  piso: string;
+  tipoResidencia: TipoResidencia;
+  numeroResidencia: string;
+  quantidadeInternosDetectados: number;
+  prontuariosExemplo: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -589,4 +602,37 @@ export async function executarSincronizacao(
   }
 
   await batch.commit();
+}
+
+/**
+ * Agrupa os conflitos individuais por residência única ausente.
+ */
+export function agruparConflitosResidenciais(impacto: ImpactoSincronizacao): ConflitoResidencialAgrupado[] {
+  const mapaConflitos = new Map<string, ConflitoResidencialAgrupado>();
+
+  for (const conf of impacto.conflitos) {
+    const reg = conf.registro;
+    const existente = mapaConflitos.get(reg.chaveResidencial);
+
+    if (existente) {
+      existente.quantidadeInternosDetectados++;
+      if (existente.prontuariosExemplo.length < 3) {
+        existente.prontuariosExemplo.push(reg.prontuario);
+      }
+    } else {
+      mapaConflitos.set(reg.chaveResidencial, {
+        chaveResidencial: reg.chaveResidencial,
+        ala: reg.ala,
+        pavilhao: reg.pavilhao,
+        galeria: reg.galeria,
+        piso: reg.piso,
+        tipoResidencia: reg.tipoResidencia,
+        numeroResidencia: reg.numeroResidencia,
+        quantidadeInternosDetectados: 1,
+        prontuariosExemplo: [reg.prontuario],
+      });
+    }
+  }
+
+  return Array.from(mapaConflitos.values());
 }

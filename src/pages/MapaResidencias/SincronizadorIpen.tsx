@@ -4,12 +4,16 @@ import { useToast } from '../../contexts/ToastContext';
 import { 
   extrairDadosRelatorio, 
   analisarImpactoSincronizacao, 
-  executarSincronizacao 
+  executarSincronizacao,
+  agruparConflitosResidenciais
 } from './servicoSincronizacao';
+import { cadastrarResidenciasProvisoriasLote } from './servicoResidencias';
 import type { 
   ImpactoSincronizacao, 
-  ResumoSincronizacao 
+  ResumoSincronizacao,
+  ConflitoResidencialAgrupado
 } from './servicoSincronizacao';
+import { TipoResidenciaLabel } from './tipos';
 
 interface Props {
   aberto: boolean;
@@ -24,7 +28,9 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
   const [textoBruto, setTextoBruto] = useState('');
   const [extraidos, setExtraidos] = useState<any[]>([]);
   const [impacto, setImpacto] = useState<ImpactoSincronizacao | null>(null);
+  const [conflitosAgrupados, setConflitosAgrupados] = useState<ConflitoResidencialAgrupado[]>([]);
   const [analisando, setAnalisando] = useState(false);
+  const [registrandoResidencias, setRegistrandoResidencias] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
 
   if (!aberto) return null;
@@ -44,10 +50,32 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
       setExtraidos(regs);
       const resultado = await analisarImpactoSincronizacao(regs);
       setImpacto(resultado);
+      setConflitosAgrupados(agruparConflitosResidenciais(resultado));
     } catch (erro: any) {
       addToast(erro.message || 'Erro ao analisar relatório.', 'error');
     } finally {
       setAnalisando(false);
+    }
+  };
+
+  const manipularCadastroEmLote = async () => {
+    if (conflitosAgrupados.length === 0 || !user) return;
+
+    setRegistrandoResidencias(true);
+    try {
+      await cadastrarResidenciasProvisoriasLote(conflitosAgrupados, user.uid);
+      addToast(`${conflitosAgrupados.length} residências provisórias cadastradas. Reanalisando...`, 'success');
+      
+      // Re-analisa automaticamente
+      const regs = extrairDadosRelatorio(textoBruto);
+      const resultado = await analisarImpactoSincronizacao(regs);
+      setImpacto(resultado);
+      setConflitosAgrupados(agruparConflitosResidenciais(resultado));
+      addToast('Relatório reanalisado com sucesso.', 'info');
+    } catch (erro: any) {
+      addToast(erro.message || 'Erro ao cadastrar residências.', 'error');
+    } finally {
+      setRegistrandoResidencias(false);
     }
   };
 
@@ -78,6 +106,7 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
       totalInativados: impacto.inativados.length,
       totalSemMudanca: impacto.semMudanca.length,
       totalConflitos: impacto.conflitos.length,
+      totalResidenciasAusentes: conflitosAgrupados.length,
     };
   };
 
@@ -142,7 +171,53 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
                   <span className="mr-sync-stat-value mr-sync-stat-warning">{resumo?.totalConflitos}</span>
                   <span className="mr-sync-stat-label">Conflitos</span>
                 </div>
+                <div className="mr-sync-stat">
+                  <span className="mr-sync-stat-value mr-sync-stat-danger">{resumo?.totalResidenciasAusentes}</span>
+                  <span className="mr-sync-stat-label">Res. Faltando</span>
+                </div>
               </div>
+
+              {conflitosAgrupados.length > 0 && (
+                <div className="mr-sync-missing-residencies">
+                  <div className="mr-sync-missing-header">
+                    <h4>Residências Estruturais Ausentes ({conflitosAgrupados.length})</h4>
+                    <button 
+                      className="mr-btn mr-btn-sm mr-btn-primary"
+                      onClick={manipularCadastroEmLote}
+                      disabled={registrandoResidencias || analisando}
+                    >
+                      {registrandoResidencias ? 'Cadastrando...' : 'Cadastrar Todas as Pendências'}
+                    </button>
+                  </div>
+                  <p className="mr-sync-missing-help">
+                    As residências abaixo não existem no PRISMA. Elas serão criadas como <strong>PROVISÓRIAS</strong> (Capacidade 0, Regime Não Informado) para permitir a alocação dos internos.
+                  </p>
+                  <div className="mr-sync-table-scroll">
+                    <table className="mr-sync-validation-table">
+                      <thead>
+                        <tr>
+                          <th>Residência</th>
+                          <th>Pav/Gal/Piso</th>
+                          <th>Tipo</th>
+                          <th>Internos</th>
+                          <th>Exemplos Prontuários</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {conflitosAgrupados.map(c => (
+                          <tr key={c.chaveResidencial}>
+                            <td><strong>{c.numeroResidencia}</strong></td>
+                            <td>{c.pavilhao}/{c.galeria}/{c.piso}</td>
+                            <td>{TipoResidenciaLabel[c.tipoResidencia]}</td>
+                            <td>{c.quantidadeInternosDetectados}</td>
+                            <td className="mr-sync-td-situ">{c.prontuariosExemplo.join(', ')}...</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               <div className="mr-sync-validation">
                 <h4>Validação de Amostra (Primeiros 3 registros)</h4>

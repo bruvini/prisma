@@ -749,13 +749,552 @@
   max-width: 250px;
 }
 
-.mr-sync-badge-tipo {
-  display: inline-block;
-  padding: 2px 6px;
-  background: var(--color-bg-light);
+/* ---------------------------------------------------------------------------
+ * Resumo Operacional (Top Tiles)
+ * --------------------------------------------------------------------------- */
+
+/* Dashboard: 5 tiles sempre em uma linha em desktop */
+.mr-dashboard {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-6);
+}
+
+.mr-tile {
+  background: var(--color-bg-white);
+  padding: var(--spacing-3) var(--spacing-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+  min-width: 0;
+}
+
+.mr-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.mr-tile-label {
+  font-size: 10px;
+  font-weight: 700;
   color: var(--color-text-muted);
-  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mr-tile-value {
+  font-family: var(--font-family-alt);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-primary);
+  line-height: 1;
+}
+
+.mr-tile-danger .mr-tile-value {
+  color: var(--color-error);
+}
+
+.mr-tile-warning .mr-tile-value {
+  color: var(--color-warning);
+}
+
+/* ---------------------------------------------------------------------------
+ * Mapa Operacional Hierárquico
+ * --------------------------------------------------------------------------- */
+
+.mr-map-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+/* Pavilhão (Card Principal) */
+.mr-pavilhao-card {
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.mr-pavilhao-header {
+  padding: var(--spacing-4) var(--spacing-6);
+  background: var(--color-bg-light);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.mr-pavilhao-header-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.mr-pavilhao-title {
+  font-family: var(--font-family-alt);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.mr-pavilhao-badge {
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+}
+
+.mr-pavilhao-ocupacao {
+  display: flex;
+  align-items: center;
+}
+
+/* Tags de ocupação reutilizadas em pavilhão e galeria */
+.mr-ocup-tag {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.mr-ocup-tag-sm {
+  font-size: 10px;
+  padding: 1px 7px;
+}
+
+.mr-ocup-under {
+  background: rgba(76, 175, 80, 0.12);
+  color: #2e7d32;
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+.mr-ocup-at {
+  background: rgba(255, 152, 0, 0.12);
+  color: #e65100;
+  border-color: rgba(255, 152, 0, 0.3);
+}
+
+.mr-ocup-over {
+  background: rgba(244, 67, 54, 0.12);
+  color: #b71c1c;
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
+.mr-pavilhao-content {
+  padding: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+/* Galeria (Accordion-like) */
+.mr-galeria-group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: #fcfcfc;
+}
+
+.mr-galeria-header {
+  padding: var(--spacing-3) var(--spacing-5);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background var(--transition-fast);
+  user-select: none;
+}
+
+.mr-galeria-header:hover {
+  background: rgba(178, 191, 80, 0.05);
+}
+
+.mr-galeria-title {
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-main);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.mr-galeria-chevron {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.mr-galeria-summary-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.mr-galeria-summary {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.mr-galeria-content {
+  padding: var(--spacing-5);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+/* Tipo de Residência */
+.mr-tipo-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.mr-tipo-title {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding-bottom: var(--spacing-1);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--spacing-2);
+}
+
+/* Grid de Residências — híbrido: cards fechados em múltiplas colunas,
+   card expandido ocupa linha inteira */
+.mr-residencia-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--spacing-3);
+  align-items: start; /* cards fechados não esticam pela altura do expandido */
+}
+
+/* Card de Residência */
+.mr-res-card {
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-3) var(--spacing-4);
+  position: relative;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  cursor: pointer;
+}
+
+.mr-res-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Card expandido ocupa a linha inteira sem afetar vizinhos */
+.mr-res-card-active {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+  background: rgba(178, 191, 80, 0.02);
+}
+
+.mr-res-card-expanded {
+  grid-column: 1 / -1;
+}
+
+.mr-res-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-3);
+}
+
+.mr-res-number {
+  font-family: var(--font-family-alt);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-main);
+}
+
+.mr-res-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.mr-res-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.mr-res-occupancy {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.mr-res-meter {
+  flex: 1;
+  height: 8px;
+  background: var(--color-bg-light);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+.mr-res-meter-bar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mr-res-percent {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  min-width: 35px;
+  text-align: right;
+}
+
+/* Cores de ocupação */
+.mr-occupancy-under .mr-res-meter-bar { background: #4caf50; }
+.mr-occupancy-at .mr-res-meter-bar { background: #ff9800; }
+.mr-occupancy-over .mr-res-meter-bar { background: #f44336; }
+
+.mr-res-stats {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  display: flex;
+  justify-content: space-between;
+  font-weight: 500;
+}
+
+/* Lista de Internos expandida */
+.mr-res-internos {
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+  border-top: 1px dashed var(--color-border);
+  animation: mr-fade-in 0.2s ease;
+}
+
+.mr-internos-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.mr-interno-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2);
+  background: var(--color-bg-light);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+}
+
+.mr-interno-pront {
+  font-weight: 700;
+  color: var(--color-primary);
+  min-width: 60px;
+}
+
+.mr-interno-nome {
+  flex: 1;
+  font-weight: 500;
+  color: var(--color-text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mr-interno-situ {
+  color: var(--color-text-muted);
+  font-style: italic;
+  font-size: 10px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Modal de Gestão Estrutural (CRUD)
+ * --------------------------------------------------------------------------- */
+
+.mr-modal-management {
+  max-width: 1360px;
+  width: 96vw;
+}
+
+.mr-management-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+/* Barra de controles: filtros à esquerda, botão à direita */
+.mr-management-controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.mr-management-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  flex: 1;
+}
+
+.mr-management-action {
+  flex-shrink: 0;
+}
+
+/* Coluna de ações na tabela de gestão — largura fixa suficiente */
+.mr-th-actions {
+  width: 140px;
+  min-width: 140px;
+  white-space: nowrap;
+}
+
+.mr-td-actions {
+  white-space: nowrap;
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+
+/* Filtros operacionais em duas linhas */
+.mr-filters-operacional {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-5);
+}
+
+.mr-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+
+.mr-filter-input-lg {
+  min-width: 200px;
+  flex: 2;
+}
+
+@media (max-width: 768px) {
+  .mr-dashboard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mr-residencia-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mr-res-card-expanded {
+    grid-column: 1;
+  }
+
+  .mr-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mr-management-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mr-management-action {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .mr-dashboard {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Residências Ausentes (Sincronizador)
+ * --------------------------------------------------------------------------- */
+
+.mr-sync-missing-residencies {
+  padding: var(--spacing-5);
+  background: rgba(191, 4, 19, 0.02);
+  border: 1px solid rgba(191, 4, 19, 0.1);
+  border-left: 4px solid var(--color-error);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-6);
+}
+
+.mr-sync-missing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-3);
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.mr-sync-missing-header h4 {
+  margin: 0;
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family-alt);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mr-sync-missing-help {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--spacing-4);
+  line-height: 1.5;
+}
+
+/* ---------------------------------------------------------------------------
+ * Badges Mini (Tabela Principal)
+ * --------------------------------------------------------------------------- */
+
+.mr-td-number-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.mr-badge-mini {
+  display: inline-flex;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  width: fit-content;
+}
+
+.mr-badge-provisoria {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffe0b2;
+}
+
+.mr-badge-revisao {
+  background: var(--color-bg-light);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
 }

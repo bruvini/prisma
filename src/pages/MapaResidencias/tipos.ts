@@ -117,6 +117,13 @@ export interface Residencia {
   criadoPor: string;
   atualizadoPor: string;
   inativadoEm?: Date;
+  
+  // Metadados para Cadastro Automático via Sincronizador
+  cadastroProvisorio?: boolean;
+  pendenteRevisao?: boolean;
+  origemCadastro?: 'RELATORIO_IPEN_1_8' | 'MANUAL';
+  criadoViaSincronizador?: boolean;
+  quantidadeInternosDetectados?: number;
 }
 
 // Payload para criação/edição (omite campos gerados pelo backend/serviço)
@@ -132,6 +139,11 @@ export type FormDataResidencia = Omit<
   | 'criadoPor' 
   | 'atualizadoPor' 
   | 'inativadoEm'
+  | 'cadastroProvisorio'
+  | 'pendenteRevisao'
+  | 'origemCadastro'
+  | 'criadoViaSincronizador'
+  | 'quantidadeInternosDetectados'
 >;
 
 // ---------------------------------------------------------------------------
