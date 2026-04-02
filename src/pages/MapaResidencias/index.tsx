@@ -1,17 +1,23 @@
 /**
- * Mapa de Residências — Página principal
- * CRUD completo com Firestore, modal centralizado e Toast feedback.
+ * Mapa de Residências — Módulo Principal (Português)
+ * CRUD completo de Estrutura Física com terminologia PRISMA.
+ *
+ * Mapeamento de equivalência PRISMA x IPEN:
+ * - Pavilhão (PRISMA) = Galeria (IPEN)
+ * - Galeria (PRISMA) = Bloco (IPEN)
  */
 import type React from 'react';
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import {
-  fetchResidences,
-  createResidence,
-  updateResidence,
-  inactivateResidence,
-} from './residenciasService';
+  buscarResidencias,
+  cadastrarResidencia,
+  atualizarResidencia,
+  inativarResidencia,
+  importarResidenciasCSV,
+  type ResultadoImportacao,
+} from './servicoResidencias';
 import {
   Ala,
   AlaLabel,
@@ -19,45 +25,45 @@ import {
   TipoResidenciaLabel,
   Regime,
   RegimeLabel,
-} from './types';
-import type { Residence, ResidenceFormData } from './types';
+} from './tipos';
+import type { Residencia, FormDataResidencia } from './tipos';
 import './MapaResidencias.css';
 
 // ---------------------------------------------------------------------------
-// Valores iniciais do formulário
+// Configuração Inicial
 // ---------------------------------------------------------------------------
 
-const EMPTY_FORM: ResidenceFormData = {
+const FORMULARIO_VAZIO: FormDataResidencia = {
   ala: Ala.MASCULINA,
-  pavilion: '',
-  gallery: '',
-  floor: '',
-  residenceType: TipoResidencia.CELA,
-  residenceNumber: '',
-  capacity: 0,
+  pavilhao: '',
+  galeria: '',
+  piso: '',
+  tipoResidencia: TipoResidencia.CELA,
+  numeroResidencia: '',
+  capacidade: 0,
   regime: Regime.NAO_INFORMADO,
 };
 
 // ---------------------------------------------------------------------------
-// Validação
+// Validações
 // ---------------------------------------------------------------------------
 
-function validate(form: ResidenceFormData): Record<string, string> {
-  const errors: Record<string, string> = {};
-  if (!form.pavilion.trim()) errors.pavilion = 'Pavilhão é obrigatório.';
-  if (!form.gallery.trim()) errors.gallery = 'Galeria é obrigatória.';
-  if (!form.floor.trim()) errors.floor = 'Piso é obrigatório.';
-  if (!form.residenceNumber.trim()) errors.residenceNumber = 'Número da Residência é obrigatório.';
-  if (form.capacity < 0 || isNaN(form.capacity))
-    errors.capacity = 'Capacidade deve ser um número não negativo.';
-  return errors;
+function validarFormulario(dados: FormDataResidencia): Record<string, string> {
+  const erros: Record<string, string> = {};
+  if (!dados.pavilhao.trim()) erros.pavilhao = 'Pavilhão é obrigatório.';
+  if (!dados.galeria.trim()) erros.galeria = 'Galeria é obrigatória.';
+  if (!dados.piso.trim()) erros.piso = 'Piso é obrigatório.';
+  if (!dados.numeroResidencia.trim()) erros.numeroResidencia = 'Número da residência é obrigatório.';
+  if (dados.capacidade < 0 || isNaN(dados.capacidade))
+    erros.capacidade = 'Capacidade deve ser zero ou maior.';
+  return erros;
 }
 
 // ---------------------------------------------------------------------------
-// Sub-componente: Select acessível
+// Componentes Utilitários
 // ---------------------------------------------------------------------------
 
-const Field: React.FC<{
+const CampoForm: React.FC<{
   label: string;
   error?: string;
   children: React.ReactNode;
@@ -70,178 +76,218 @@ const Field: React.FC<{
 );
 
 // ---------------------------------------------------------------------------
-// Sub-componente: Filtros
+// Estado de Filtros
 // ---------------------------------------------------------------------------
 
-interface FiltersState {
+interface EstadoFiltros {
   ala: string;
-  pavilion: string;
-  gallery: string;
-  floor: string;
-  residenceType: string;
+  pavilhao: string;
+  galeria: string;
+  piso: string;
+  tipoResidencia: string;
   regime: string;
 }
 
-const EMPTY_FILTERS: FiltersState = {
+const FILTROS_VAZIOS: EstadoFiltros = {
   ala: '',
-  pavilion: '',
-  gallery: '',
-  floor: '',
-  residenceType: '',
+  pavilhao: '',
+  galeria: '',
+  piso: '',
+  tipoResidencia: '',
   regime: '',
 };
 
 // ---------------------------------------------------------------------------
-// Página principal
+// Página Mapa de Residências
 // ---------------------------------------------------------------------------
 
 export const MapaResidencias: React.FC = () => {
   const { user } = useAuth();
   const { addToast } = useToast();
 
-  const [residences, setResidences] = useState<Residence[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<FiltersState>(EMPTY_FILTERS);
+  const [residencias, setResidencias] = useState<Residencia[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [importando, setImportando] = useState(false);
+  const [filtros, setFiltros] = useState<EstadoFiltros>(FILTROS_VAZIOS);
 
-  // Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<ResidenceFormData>(EMPTY_FORM);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
+  // Estados de Modal (Cadastro/Edição)
+  const [modalAberto, setModalAberto] = useState(false);
+  const [idEdicao, setIdEdicao] = useState<string | null>(null);
+  const [formulario, setFormulario] = useState<FormDataResidencia>(FORMULARIO_VAZIO);
+  const [errosForm, setErrosForm] = useState<Record<string, string>>({});
+  const [salvando, setSalvando] = useState(false);
 
-  // Confirmação de exclusão
-  const [deleteTarget, setDeleteTarget] = useState<Residence | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  // Estados de Exclusão
+  const [alvoExclusao, setAlvoExclusao] = useState<Residencia | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
 
   // ---------------------------------------------------------------------------
-  // Leitura
+  // Busca de Dados
   // ---------------------------------------------------------------------------
 
-  const loadResidences = useCallback(async () => {
-    setLoading(true);
+  const carregarResidencias = useCallback(async () => {
+    setCarregando(true);
     try {
-      const data = await fetchResidences();
-      setResidences(data);
-    } catch (err) {
-      console.error(err);
-      addToast('Erro ao carregar residências. Verifique a conexão.', 'error');
+      const dados = await buscarResidencias();
+      setResidencias(dados);
+    } catch (erro: any) {
+      addToast(erro.message || 'Erro ao carregar mapa de residências.', 'error');
     } finally {
-      setLoading(false);
+      setCarregando(false);
     }
   }, [addToast]);
 
   useEffect(() => {
-    loadResidences();
-  }, [loadResidences]);
+    carregarResidencias();
+  }, [carregarResidencias]);
 
   // ---------------------------------------------------------------------------
-  // Filtros
+  // Ações Administrativas
   // ---------------------------------------------------------------------------
 
-  const filtered = residences.filter(r => {
-    if (filters.ala && r.ala !== filters.ala) return false;
-    if (filters.pavilion && !r.pavilion.toLowerCase().includes(filters.pavilion.toLowerCase())) return false;
-    if (filters.gallery && !r.gallery.toLowerCase().includes(filters.gallery.toLowerCase())) return false;
-    if (filters.floor && !r.floor.toLowerCase().includes(filters.floor.toLowerCase())) return false;
-    if (filters.residenceType && r.residenceType !== filters.residenceType) return false;
-    if (filters.regime && r.regime !== filters.regime) return false;
+  const manipularImportacao = async () => {
+    const confirmacao = window.confirm('Deseja iniciar a carga inicial de residências a partir do CSV institucional? Registros duplicados serão ignorados.');
+    if (!confirmacao) return;
+
+    setImportando(true);
+    try {
+      const response = await fetch('/Residências - Residencias.csv');
+      if (!response.ok) throw new Error('Arquivo CSV não encontrado em /public.');
+      
+      const conteudo = await response.text();
+      const uid = user?.uid || 'admin-batch';
+      
+      const resultado: ResultadoImportacao = await importarResidenciasCSV(conteudo, uid);
+      
+      if (resultado.erros.length > 0) {
+        console.warn('Erros na importação:', resultado.erros);
+        addToast(`Importação concluída com ${resultado.erros.length} avisos. Verifique o console.`, 'info');
+      } else {
+        addToast(`Carga inicial concluída: ${resultado.totalImportado} novos, ${resultado.totalIgnorado} ignorados.`, 'success');
+      }
+      
+      await carregarResidencias();
+    } catch (erro: any) {
+      addToast(erro.message || 'Falha na carga dos dados.', 'error');
+    } finally {
+      setImportando(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Lógica de Filtros
+  // ---------------------------------------------------------------------------
+
+  const residenciasFiltradas = residencias.filter(r => {
+    if (filtros.ala && r.ala !== filtros.ala) return false;
+    if (filtros.pavilhao && !r.pavilhao.toLowerCase().includes(filtros.pavilhao.toLowerCase())) return false;
+    if (filtros.galeria && !r.galeria.toLowerCase().includes(filtros.galeria.toLowerCase())) return false;
+    if (filtros.piso && !r.piso.toLowerCase().includes(filtros.piso.toLowerCase())) return false;
+    if (filtros.tipoResidencia && r.tipoResidencia !== filtros.tipoResidencia) return false;
+    if (filtros.regime && r.regime !== filtros.regime) return false;
     return true;
   });
 
   // ---------------------------------------------------------------------------
-  // Modal helpers
+  // Ações do Modal
   // ---------------------------------------------------------------------------
 
-  function openCreate() {
-    setForm(EMPTY_FORM);
-    setFormErrors({});
-    setEditingId(null);
-    setIsModalOpen(true);
+  function abrirModalNovo() {
+    setFormulario(FORMULARIO_VAZIO);
+    setErrosForm({});
+    setIdEdicao(null);
+    setModalAberto(true);
   }
 
-  function openEdit(r: Residence) {
-    setForm({
+  function abrirModalEdicao(r: Residencia) {
+    setFormulario({
       ala: r.ala,
-      pavilion: r.pavilion,
-      gallery: r.gallery,
-      floor: r.floor,
-      residenceType: r.residenceType,
-      residenceNumber: r.residenceNumber,
-      capacity: r.capacity,
+      pavilhao: r.pavilhao,
+      galeria: r.galeria,
+      piso: r.piso,
+      tipoResidencia: r.tipoResidencia,
+      numeroResidencia: r.numeroResidencia,
+      capacidade: r.capacidade,
       regime: r.regime,
     });
-    setFormErrors({});
-    setEditingId(r.id);
-    setIsModalOpen(true);
+    setErrosForm({});
+    setIdEdicao(r.id);
+    setModalAberto(true);
   }
 
-  function closeModal() {
-    setIsModalOpen(false);
-    setEditingId(null);
-    setFormErrors({});
+  function fecharModal() {
+    if (salvando) return;
+    setModalAberto(false);
+    setIdEdicao(null);
+    setErrosForm({});
+    setSalvando(false);
   }
 
   // ---------------------------------------------------------------------------
-  // CRUD
+  // Operações de Salvamento
   // ---------------------------------------------------------------------------
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function manipularSubmissao(e: React.FormEvent) {
     e.preventDefault();
-    const errors = validate(form);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
+    const erros = validarFormulario(formulario);
+    if (Object.keys(erros).length > 0) {
+      setErrosForm(erros);
       return;
     }
 
-    setSubmitting(true);
+    setSalvando(true);
     try {
-      const uid = user?.uid ?? 'unknown';
-      if (editingId) {
-        await updateResidence(editingId, form, uid);
+      const uid = user?.uid || 'desconhecido';
+      
+      if (idEdicao) {
+        await atualizarResidencia(idEdicao, formulario, uid);
         addToast('Residência atualizada com sucesso.', 'success');
       } else {
-        await createResidence(form, uid);
+        await cadastrarResidencia(formulario, uid);
         addToast('Residência cadastrada com sucesso.', 'success');
       }
-      closeModal();
-      await loadResidences();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro inesperado.';
-      addToast(msg, 'error');
+      
+      setModalAberto(false);
+      await carregarResidencias();
+    } catch (erro: any) {
+      addToast(erro.message || 'Erro ao processar residência.', 'error');
     } finally {
-      setSubmitting(false);
+      setSalvando(false);
     }
   }
 
-  async function handleDelete() {
-    if (!deleteTarget) return;
-    setDeleting(true);
+  // ---------------------------------------------------------------------------
+  // Operações de Exclusão
+  // ---------------------------------------------------------------------------
+
+  async function confirmarExclusao() {
+    if (!alvoExclusao) return;
+    setExcluindo(true);
     try {
-      const uid = user?.uid ?? 'unknown';
-      await inactivateResidence(deleteTarget.id, uid);
-      addToast('Residência excluída com sucesso.', 'success');
-      setDeleteTarget(null);
-      await loadResidences();
-    } catch {
-      addToast('Erro ao excluir residência. Tente novamente.', 'error');
+      const uid = user?.uid || 'desconhecido';
+      await inativarResidencia(alvoExclusao.id, uid);
+      addToast('Residência excluída (inativada) com sucesso.', 'success');
+      setAlvoExclusao(null);
+      await carregarResidencias();
+    } catch (erro: any) {
+      addToast(erro.message || 'Erro ao excluir registro.', 'error');
     } finally {
-      setDeleting(false);
+      setExcluindo(false);
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Render — Filtros
+  // Renderização de Filtros
   // ---------------------------------------------------------------------------
 
-  function renderFilters() {
+  function renderizarFiltros() {
     return (
       <div className="mr-filters">
         <select
           className="mr-select mr-filter-select"
-          value={filters.ala}
-          onChange={e => setFilters(f => ({ ...f, ala: e.target.value }))}
-          aria-label="Filtrar por ala"
+          value={filtros.ala}
+          onChange={e => setFiltros(f => ({ ...f, ala: e.target.value }))}
+          aria-label="Filtrar por Ala"
         >
           <option value="">Todas as Alas</option>
           {Object.values(Ala).map(v => (
@@ -252,32 +298,32 @@ export const MapaResidencias: React.FC = () => {
         <input
           className="mr-input mr-filter-input"
           placeholder="Pavilhão..."
-          value={filters.pavilion}
-          onChange={e => setFilters(f => ({ ...f, pavilion: e.target.value }))}
-          aria-label="Filtrar por pavilhão"
+          value={filtros.pavilhao}
+          onChange={e => setFiltros(f => ({ ...f, pavilhao: e.target.value }))}
+          aria-label="Filtrar por Pavilhão"
         />
 
         <input
           className="mr-input mr-filter-input"
           placeholder="Galeria..."
-          value={filters.gallery}
-          onChange={e => setFilters(f => ({ ...f, gallery: e.target.value }))}
-          aria-label="Filtrar por galeria"
+          value={filtros.galeria}
+          onChange={e => setFiltros(f => ({ ...f, galeria: e.target.value }))}
+          aria-label="Filtrar por Galeria"
         />
 
         <input
           className="mr-input mr-filter-input"
           placeholder="Piso..."
-          value={filters.floor}
-          onChange={e => setFilters(f => ({ ...f, floor: e.target.value }))}
-          aria-label="Filtrar por piso"
+          value={filtros.piso}
+          onChange={e => setFiltros(f => ({ ...f, piso: e.target.value }))}
+          aria-label="Filtrar por Piso"
         />
 
         <select
           className="mr-select mr-filter-select"
-          value={filters.residenceType}
-          onChange={e => setFilters(f => ({ ...f, residenceType: e.target.value }))}
-          aria-label="Filtrar por tipo"
+          value={filtros.tipoResidencia}
+          onChange={e => setFiltros(f => ({ ...f, tipoResidencia: e.target.value }))}
+          aria-label="Filtrar por Tipo"
         >
           <option value="">Todos os Tipos</option>
           {Object.values(TipoResidencia).map(v => (
@@ -287,9 +333,9 @@ export const MapaResidencias: React.FC = () => {
 
         <select
           className="mr-select mr-filter-select"
-          value={filters.regime}
-          onChange={e => setFilters(f => ({ ...f, regime: e.target.value }))}
-          aria-label="Filtrar por regime"
+          value={filtros.regime}
+          onChange={e => setFiltros(f => ({ ...f, regime: e.target.value }))}
+          aria-label="Filtrar por Regime"
         >
           <option value="">Todos os Regimes</option>
           {Object.values(Regime).map(v => (
@@ -297,13 +343,13 @@ export const MapaResidencias: React.FC = () => {
           ))}
         </select>
 
-        {Object.values(filters).some(Boolean) && (
+        {Object.values(filtros).some(Boolean) && (
           <button
             className="mr-btn mr-btn-ghost mr-btn-sm"
-            onClick={() => setFilters(EMPTY_FILTERS)}
-            title="Limpar filtros"
+            onClick={() => setFiltros(FILTROS_VAZIOS)}
+            title="Limpar todos os filtros"
           >
-            Limpar filtros
+            Limpar Filtros
           </button>
         )}
       </div>
@@ -311,30 +357,30 @@ export const MapaResidencias: React.FC = () => {
   }
 
   // ---------------------------------------------------------------------------
-  // Render — Tabela
+  // Renderização de Tabela
   // ---------------------------------------------------------------------------
 
-  function renderTable() {
-    if (loading) {
+  function renderizarTabela() {
+    if (carregando) {
       return (
         <div className="mr-loading-state">
           <span className="mr-spinner" />
-          <p>Carregando residências...</p>
+          <p>Carregando mapa de residências...</p>
         </div>
       );
     }
 
-    if (filtered.length === 0) {
+    if (residenciasFiltradas.length === 0) {
       return (
         <div className="mr-empty-state">
-          <p>{residences.length === 0 ? 'Nenhuma residência cadastrada ainda.' : 'Nenhuma residência corresponde aos filtros aplicados.'}</p>
+          <p>{residencias.length === 0 ? 'Nenhuma residência cadastrada.' : 'Nenhum resultado para os filtros aplicados.'}</p>
         </div>
       );
     }
 
     return (
       <div className="mr-table-wrapper">
-        <table className="mr-table" role="table" aria-label="Lista de residências">
+        <table className="mr-table" role="grid">
           <thead>
             <tr>
               <th>Ala</th>
@@ -349,23 +395,23 @@ export const MapaResidencias: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(r => (
+            {residenciasFiltradas.map(r => (
               <tr key={r.id} className="mr-row">
                 <td>
                   <span className={`mr-badge mr-badge-ala-${r.ala.toLowerCase()}`}>
                     {AlaLabel[r.ala]}
                   </span>
                 </td>
-                <td>{r.pavilion}</td>
-                <td>{r.gallery}</td>
-                <td>{r.floor}</td>
+                <td>{r.pavilhao}</td>
+                <td>{r.galeria}</td>
+                <td>{r.piso}</td>
                 <td>
                   <span className="mr-badge mr-badge-tipo">
-                    {TipoResidenciaLabel[r.residenceType]}
+                    {TipoResidenciaLabel[r.tipoResidencia]}
                   </span>
                 </td>
-                <td className="mr-td-number">{r.residenceNumber}</td>
-                <td className="mr-th-center">{r.capacity}</td>
+                <td className="mr-td-number">{r.numeroResidencia}</td>
+                <td className="mr-th-center">{r.capacidade}</td>
                 <td>
                   <span className={`mr-badge mr-badge-regime-${r.regime.toLowerCase()}`}>
                     {RegimeLabel[r.regime]}
@@ -374,15 +420,15 @@ export const MapaResidencias: React.FC = () => {
                 <td className="mr-td-actions">
                   <button
                     className="mr-btn mr-btn-ghost mr-btn-sm"
-                    onClick={() => openEdit(r)}
-                    aria-label={`Editar residência ${r.residenceNumber}`}
+                    onClick={() => abrirModalEdicao(r)}
+                    aria-label="Editar"
                   >
                     Editar
                   </button>
                   <button
                     className="mr-btn mr-btn-danger mr-btn-sm"
-                    onClick={() => setDeleteTarget(r)}
-                    aria-label={`Excluir residência ${r.residenceNumber}`}
+                    onClick={() => setAlvoExclusao(r)}
+                    aria-label="Excluir"
                   >
                     Excluir
                   </button>
@@ -396,137 +442,121 @@ export const MapaResidencias: React.FC = () => {
   }
 
   // ---------------------------------------------------------------------------
-  // Render — Modal de criação/edição
+  // Renderização de Modal
   // ---------------------------------------------------------------------------
 
-  function renderModal() {
-    if (!isModalOpen) return null;
+  function renderizarModal() {
+    if (!modalAberto) return null;
     return (
-      <div className="mr-overlay" role="dialog" aria-modal="true" aria-label={editingId ? 'Editar Residência' : 'Nova Residência'}>
+      <div className="mr-overlay" role="dialog" aria-modal="true">
         <div className="mr-modal">
           <div className="mr-modal-header">
-            <h2 className="mr-modal-title">{editingId ? 'Editar Residência' : 'Nova Residência'}</h2>
-            <button className="mr-modal-close" onClick={closeModal} aria-label="Fechar modal">&times;</button>
+            <h2 className="mr-modal-title">{idEdicao ? 'Editar Residência' : 'Cadastrar Residência'}</h2>
+            <button className="mr-modal-close" onClick={fecharModal} aria-label="Fechar" disabled={salvando}>&times;</button>
           </div>
 
-          <form className="mr-modal-form" onSubmit={handleSubmit} noValidate>
+          <form className="mr-modal-form" onSubmit={manipularSubmissao} noValidate>
             <div className="mr-form-grid">
-
-              {/* Ala */}
-              <Field label="Ala *" error={formErrors.ala}>
+              
+              <CampoForm label="Ala *" error={errosForm.ala}>
                 <select
-                  id="mr-f-ala"
                   className="mr-select"
-                  value={form.ala}
-                  onChange={e => setForm(f => ({ ...f, ala: e.target.value as Ala }))}
+                  value={formulario.ala}
+                  onChange={e => setFormulario(f => ({ ...f, ala: e.target.value as Ala }))}
                   required
                 >
                   {Object.values(Ala).map(v => (
                     <option key={v} value={v}>{AlaLabel[v]}</option>
                   ))}
                 </select>
-              </Field>
+              </CampoForm>
 
-              {/* Pavilhão */}
-              <Field label="Pavilhão *" error={formErrors.pavilion}>
+              <CampoForm label="Pavilhão (Galeria IPEN) *" error={errosForm.pavilhao}>
                 <input
-                  id="mr-f-pavilion"
-                  className={`mr-input ${formErrors.pavilion ? 'mr-input-error' : ''}`}
-                  value={form.pavilion}
-                  onChange={e => setForm(f => ({ ...f, pavilion: e.target.value }))}
+                  className={`mr-input ${errosForm.pavilhao ? 'mr-input-error' : ''}`}
+                  value={formulario.pavilhao}
+                  onChange={e => setFormulario(f => ({ ...f, pavilhao: e.target.value }))}
                   placeholder="Ex.: A, B, C1"
                   maxLength={20}
                 />
-              </Field>
+              </CampoForm>
 
-              {/* Galeria */}
-              <Field label="Galeria *" error={formErrors.gallery}>
+              <CampoForm label="Galeria (Bloco IPEN) *" error={errosForm.galeria}>
                 <input
-                  id="mr-f-gallery"
-                  className={`mr-input ${formErrors.gallery ? 'mr-input-error' : ''}`}
-                  value={form.gallery}
-                  onChange={e => setForm(f => ({ ...f, gallery: e.target.value }))}
-                  placeholder="Ex.: 1, 2, Norte"
+                  className={`mr-input ${errosForm.galeria ? 'mr-input-error' : ''}`}
+                  value={formulario.galeria}
+                  onChange={e => setFormulario(f => ({ ...f, galeria: e.target.value }))}
+                  placeholder="Ex.: 01, Norte"
                   maxLength={20}
                 />
-              </Field>
+              </CampoForm>
 
-              {/* Piso */}
-              <Field label="Piso *" error={formErrors.floor}>
+              <CampoForm label="Piso *" error={errosForm.piso}>
                 <input
-                  id="mr-f-floor"
-                  className={`mr-input ${formErrors.floor ? 'mr-input-error' : ''}`}
-                  value={form.floor}
-                  onChange={e => setForm(f => ({ ...f, floor: e.target.value }))}
+                  className={`mr-input ${errosForm.piso ? 'mr-input-error' : ''}`}
+                  value={formulario.piso}
+                  onChange={e => setFormulario(f => ({ ...f, piso: e.target.value }))}
                   placeholder="Ex.: T, 1, 2"
                   maxLength={10}
                 />
-              </Field>
+              </CampoForm>
 
-              {/* Tipo de Residência */}
-              <Field label="Tipo de Residência *" error={formErrors.residenceType}>
+              <CampoForm label="Tipo de Residência *" error={errosForm.tipoResidencia}>
                 <select
-                  id="mr-f-tipo"
                   className="mr-select"
-                  value={form.residenceType}
-                  onChange={e => setForm(f => ({ ...f, residenceType: e.target.value as TipoResidencia }))}
+                  value={formulario.tipoResidencia}
+                  onChange={e => setFormulario(f => ({ ...f, tipoResidencia: e.target.value as TipoResidencia }))}
                   required
                 >
                   {Object.values(TipoResidencia).map(v => (
                     <option key={v} value={v}>{TipoResidenciaLabel[v]}</option>
                   ))}
                 </select>
-              </Field>
+              </CampoForm>
 
-              {/* Número da Residência */}
-              <Field label="Número da Residência *" error={formErrors.residenceNumber}>
+              <CampoForm label="Número da Residência *" error={errosForm.numeroResidencia}>
                 <input
-                  id="mr-f-number"
-                  className={`mr-input ${formErrors.residenceNumber ? 'mr-input-error' : ''}`}
-                  value={form.residenceNumber}
-                  onChange={e => setForm(f => ({ ...f, residenceNumber: e.target.value }))}
-                  placeholder="Ex.: 01, 12, A01"
+                  className={`mr-input ${errosForm.numeroResidencia ? 'mr-input-error' : ''}`}
+                  value={formulario.numeroResidencia}
+                  onChange={e => setFormulario(f => ({ ...f, numeroResidencia: e.target.value }))}
+                  placeholder="Ex.: 01, A05"
                   maxLength={10}
                 />
-              </Field>
+              </CampoForm>
 
-              {/* Capacidade */}
-              <Field label="Capacidade *" error={formErrors.capacity}>
+              <CampoForm label="Capacidade *" error={errosForm.capacidade}>
                 <input
-                  id="mr-f-capacity"
-                  className={`mr-input ${formErrors.capacity ? 'mr-input-error' : ''}`}
+                  className={`mr-input ${errosForm.capacidade ? 'mr-input-error' : ''}`}
                   type="number"
                   min={0}
-                  value={form.capacity}
-                  onChange={e => setForm(f => ({ ...f, capacity: parseInt(e.target.value, 10) || 0 }))}
+                  value={formulario.capacidade}
+                  onChange={e => setFormulario(f => ({ ...f, capacidade: parseInt(e.target.value, 10) || 0 }))}
                   placeholder="0"
                 />
-              </Field>
+              </CampoForm>
 
-              {/* Regime */}
-              <Field label="Regime *" error={formErrors.regime}>
+              <CampoForm label="Regime *" error={errosForm.regime}>
                 <select
-                  id="mr-f-regime"
                   className="mr-select"
-                  value={form.regime}
-                  onChange={e => setForm(f => ({ ...f, regime: e.target.value as Regime }))}
+                  value={formulario.regime}
+                  onChange={e => setFormulario(f => ({ ...f, regime: e.target.value as Regime }))}
                   required
                 >
                   {Object.values(Regime).map(v => (
                     <option key={v} value={v}>{RegimeLabel[v]}</option>
                   ))}
                 </select>
-              </Field>
+              </CampoForm>
 
             </div>
 
             <div className="mr-modal-footer">
-              <button type="button" className="mr-btn mr-btn-ghost" onClick={closeModal} disabled={submitting}>
+              <button type="button" className="mr-btn mr-btn-ghost" onClick={fecharModal} disabled={salvando}>
                 Cancelar
               </button>
-              <button type="submit" className="mr-btn mr-btn-primary" disabled={submitting}>
-                {submitting ? <span className="mr-spinner-sm" /> : null}
-                {submitting ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Cadastrar residência'}
+              <button type="submit" className="mr-btn mr-btn-primary" disabled={salvando}>
+                {salvando ? <span className="mr-spinner-sm" /> : null}
+                {salvando ? 'Salvando...' : idEdicao ? 'Salvar Alterações' : 'Cadastrar Residência'}
               </button>
             </div>
           </form>
@@ -536,43 +566,29 @@ export const MapaResidencias: React.FC = () => {
   }
 
   // ---------------------------------------------------------------------------
-  // Render — Confirmação de exclusão
+  // Renderização de Confirmação de Exclusão
   // ---------------------------------------------------------------------------
 
-  function renderDeleteConfirm() {
-    if (!deleteTarget) return null;
+  function renderizarModalExclusao() {
+    if (!alvoExclusao) return null;
     return (
-      <div className="mr-overlay" role="dialog" aria-modal="true" aria-label="Confirmar exclusão">
+      <div className="mr-overlay" role="dialog" aria-modal="true">
         <div className="mr-modal mr-modal-sm">
           <div className="mr-modal-header">
-            <h2 className="mr-modal-title">Confirmar exclusão</h2>
-            <button className="mr-modal-close" onClick={() => setDeleteTarget(null)} aria-label="Fechar">
-              &times;
-            </button>
+            <h2 className="mr-modal-title">Confirmar Exclusão</h2>
+            <button className="mr-modal-close" onClick={() => setAlvoExclusao(null)} disabled={excluindo}>&times;</button>
           </div>
           <div className="mr-delete-body">
-            <p>
-              Deseja excluir a residência <strong>{deleteTarget.displayLabel}</strong>?
-            </p>
-            <p className="mr-delete-hint">
-              O registro será inativado e mantido para fins de rastreabilidade. Esta ação não pode ser desfeita facilmente.
-            </p>
+            <p>Deseja excluir a residência <strong>{alvoExclusao.rotuloExibicao}</strong>?</p>
+            <p className="mr-delete-hint">O registro será inativado para manter o histórico de auditoria.</p>
           </div>
           <div className="mr-modal-footer">
-            <button
-              className="mr-btn mr-btn-ghost"
-              onClick={() => setDeleteTarget(null)}
-              disabled={deleting}
-            >
+            <button className="mr-btn mr-btn-ghost" onClick={() => setAlvoExclusao(null)} disabled={excluindo}>
               Cancelar
             </button>
-            <button
-              className="mr-btn mr-btn-danger"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? <span className="mr-spinner-sm" /> : null}
-              {deleting ? 'Excluindo...' : 'Confirmar exclusão'}
+            <button className="mr-btn mr-btn-danger" onClick={confirmarExclusao} disabled={excluindo}>
+              {excluindo ? <span className="mr-spinner-sm" /> : null}
+              {excluindo ? 'Excluindo...' : 'Sim, Excluir'}
             </button>
           </div>
         </div>
@@ -581,46 +597,45 @@ export const MapaResidencias: React.FC = () => {
   }
 
   // ---------------------------------------------------------------------------
-  // Render principal
+  // Renderização Base
   // ---------------------------------------------------------------------------
 
   return (
     <div className="mr-page">
-      {/* Cabeçalho */}
       <div className="mr-page-header">
         <div className="mr-page-header-text">
           <h1 className="mr-page-title">Mapa de Residências</h1>
           <p className="mr-page-subtitle">
-            Cadastro e organização física das residências internas.
-            {!loading && (
+            Gestão da estrutura física do sistema.
+            {!carregando && (
               <span className="mr-count">
-                {' '}{filtered.length} {filtered.length === 1 ? 'residência' : 'residências'}{residences.length !== filtered.length ? ` de ${residences.length}` : ''}
+                {' '}({residenciasFiltradas.length} {residenciasFiltradas.length === 1 ? 'registro' : 'registros'})
               </span>
             )}
           </p>
         </div>
         <div className="mr-page-actions">
-          <button
-            id="btn-nova-residencia"
-            className="mr-btn mr-btn-primary"
-            onClick={openCreate}
-          >
+          {(user?.email === 'admin@prisma.com' || user?.email === 'admin@google.com') && (
+            <button 
+              className="mr-btn mr-btn-ghost" 
+              onClick={manipularImportacao}
+              disabled={importando || carregando}
+              title="Importar carga inicial de residências"
+            >
+              {importando ? <span className="mr-spinner-sm" /> : null}
+              {importando ? 'Importando...' : 'Carga Inicial (CSV)'}
+            </button>
+          )}
+          <button className="mr-btn mr-btn-primary" onClick={abrirModalNovo} id="btn-nova-residencia">
             + Nova Residência
           </button>
         </div>
       </div>
 
-      {/* Filtros */}
-      {renderFilters()}
-
-      {/* Tabela */}
-      {renderTable()}
-
-      {/* Modal criação/edição */}
-      {renderModal()}
-
-      {/* Modal confirmação de exclusão */}
-      {renderDeleteConfirm()}
+      {renderizarFiltros()}
+      {renderizarTabela()}
+      {renderizarModal()}
+      {renderizarModalExclusao()}
     </div>
   );
 };

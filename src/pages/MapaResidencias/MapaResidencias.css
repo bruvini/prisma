@@ -211,6 +211,11 @@
   color: #880e4f;
 }
 
+.mr-badge-ala-nao_informada {
+  background: rgba(117, 117, 117, 0.1);
+  color: #424242;
+}
+
 .mr-badge-tipo {
   background: rgba(166, 140, 91, 0.12);
   color: #5d4e30;

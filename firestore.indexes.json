@@ -1,0 +1,19 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "residencias",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ativo",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "chaveOrdenacao",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
