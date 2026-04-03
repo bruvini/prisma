@@ -7,6 +7,7 @@ import { Login } from './pages/Login';
 import { Home } from './pages/Home';
 import { Placeholder } from './components/ui/Placeholder';
 import { MapaResidencias } from './pages/MapaResidencias';
+import { Indicadores } from './pages/Indicadores';
 import { appModules } from './config/modules';
 
 // Placeholder genérico para exibir módulos pela config
@@ -48,10 +49,12 @@ function App() {
               <Route path="/inicio" element={<Home />} />
               {/* Módulo Mapa de Residências */}
               <Route path="/residencias" element={<MapaResidencias />} />
+              {/* Módulo de Indicadores Metodológicos */}
+              <Route path="/indicadores" element={<Indicadores />} />
               {/* Redirect de compatibilidade da rota antiga */}
               <Route path="/mapa-celas" element={<Navigate to="/residencias" replace />} />
               {/* Demais módulos ainda como placeholder */}
-              {appModules.filter(m => !['inicio', 'residencias'].includes(m.id)).map(m => (
+              {appModules.filter(m => !['inicio', 'residencias', 'indicadores'].includes(m.id)).map(m => (
                 <Route
                   key={m.id}
                   path={m.path.replace('/', '')}
