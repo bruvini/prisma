@@ -24,7 +24,7 @@ function formatDateBr(dateAny: any): string {
     const sec = String(dateObj.getSeconds()).padStart(2, '0');
     
     return `${d}/${m}/${y} ${h}:${min}:${sec}`;
-  } catch (_e) {
+  } catch {
     return 'Data Inválida';
   }
 }
@@ -34,7 +34,8 @@ export function gerarRelatorioPdfSincronizacao(
   resumo: ResumoSincronizacao,
   dataAtual: any,
   dataAnterior: any | null,
-  nomeUsuario: string = 'Sistema Prisma'
+  nomeUsuario: string = 'Sistema Prisma',
+  dataRelatorioAtual: Date | null = null
 ) {
   const doc = new jsPDF('p', 'mm', 'a4');
   let cursorY = 20;
@@ -66,14 +67,45 @@ export function gerarRelatorioPdfSincronizacao(
   
   cursorY += 6;
   doc.setFont('helvetica', 'normal');
-  const txtAnterior = dataAnterior ? formatDateBr(dataAnterior) : 'Primeira sincronização registrada';
-  const txtAtual = formatDateBr(dataAtual);
   
-  doc.text(`Sincronização Anterior: ${txtAnterior}`, 14, cursorY);
-  cursorY += 5;
-  doc.text(`Sincronização Atual: ${txtAtual}`, 14, cursorY);
-  cursorY += 5;
+  // Tratamento da Carga Anterior (Pode ser Date/Timestamp ou do objeto log completo)
+  let txtAnteriorSinc = 'Primeira sincronização registrada';
+  let txtAnteriorRel = 'não disponível';
+  
+  if (dataAnterior) {
+    // Se for o objeto log anterior
+    if (typeof dataAnterior === 'object' && dataAnterior.sincronizadoEm) {
+      txtAnteriorSinc = formatDateBr(dataAnterior.sincronizadoEm);
+      if (dataAnterior.dataHoraEmissaoRelatorioIpen) {
+        txtAnteriorRel = formatDateBr(dataAnterior.dataHoraEmissaoRelatorioIpen);
+      }
+    } else {
+      // Fallback para quando recebemos apenas a data brute (legado ou simplificado)
+      txtAnteriorSinc = formatDateBr(dataAnterior);
+    }
+  }
+
+  const txtAtualSinc = formatDateBr(dataAtual);
+  const txtAtualRel = dataRelatorioAtual ? formatDateBr(dataRelatorioAtual) : 'identificação falhou';
+  
+  doc.text(`Sincronização Anterior: ${txtAnteriorSinc}`, 14, cursorY);
+  doc.setFontSize(8);
+  doc.setTextColor(100);
+  doc.text(`(referente ao relatório emitido em ${txtAnteriorRel})`, 14, cursorY + 4);
+  
+  doc.setTextColor(0,0,0);
+  doc.setFontSize(10);
+  cursorY += 10;
+  doc.text(`Sincronização Atual: ${txtAtualSinc}`, 14, cursorY);
+  doc.setFontSize(8);
+  doc.setTextColor(100);
+  doc.text(`(referente ao relatório emitido em ${txtAtualRel})`, 14, cursorY + 4);
+  
+  doc.setTextColor(0,0,0);
+  doc.setFontSize(10);
+  cursorY += 10;
   doc.text(`Executado por: ${nomeUsuario}`, 14, cursorY);
+  cursorY += 2;
 
   // 3. Resumo Executivo
   cursorY += 12;

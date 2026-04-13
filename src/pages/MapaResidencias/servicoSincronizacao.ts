@@ -110,7 +110,8 @@ export function extrairDadosRelatorio(textoBruto: string): RegistroExtraido[] {
         linha.includes('LISTAGEM DE INTERNOS ALOCADOS') ||
         linha.includes('Secretaria de Estado') ||
         linha.includes('Departamento de Polícia') ||
-        linha.includes('Pág.:')) {
+        linha.includes('Pág.:') ||
+        linha.toUpperCase().includes('IMPRESSO EM')) {
       continue;
     }
 
@@ -132,6 +133,27 @@ export function extrairDadosRelatorio(textoBruto: string): RegistroExtraido[] {
   }
 
   return registros;
+}
+
+/**
+ * Localiza e extrai a data de emissão do relatório I-PEN.
+ * Padrão: "Impresso em DD/MM/AAAA HH:MM:SS"
+ */
+export function extrairDataEmissaoRelatorio(textoBruto: string): Date | null {
+  if (!textoBruto) return null;
+  
+  // Regex para capturar data e hora após "Impresso em"
+  const regex = /Impresso\s+em\s+(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/i;
+  const match = textoBruto.match(regex);
+  
+  if (match) {
+    const [, d, m, y, h, min, s] = match;
+    // Mês no JS é 0-indexed
+    const data = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), parseInt(h), parseInt(min), parseInt(s));
+    return isNaN(data.getTime()) ? null : data;
+  }
+  
+  return null;
 }
 
 /**

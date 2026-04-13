@@ -16,6 +16,7 @@ export interface SincronizacaoIpenLog {
     reativados: any[];
     inativados: any[];
   };
+  dataHoraEmissaoRelatorioIpen?: any | null; // Date (ou Timestamp serializado)
   origem: 'MAPA_RESIDENCIAS';
 }
 
@@ -35,7 +36,8 @@ export async function registrarHistoricoSincronizacao(
   impacto: ImpactoSincronizacao,
   resumo: ResumoSincronizacao,
   ultimaSincronizacaoEm: any | null,
-  idUsuario: string
+  idUsuario: string,
+  dataHoraRelatorio: Date | null = null
 ): Promise<SincronizacaoIpenLog> {
   const ref = doc(collection(db, 'sincronizacoesIpen'));
   const agora = serverTimestamp();
@@ -59,6 +61,7 @@ export async function registrarHistoricoSincronizacao(
     sincronizacaoAnteriorEm: ultimaSincronizacaoEm,
     resumo,
     origem: 'MAPA_RESIDENCIAS',
+    dataHoraEmissaoRelatorioIpen: dataHoraRelatorio,
     detalhes: {
       novos: impacto.novos.map(mapearReg),
       realocados: impacto.realocados.map(r => ({

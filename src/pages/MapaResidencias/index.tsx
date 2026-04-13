@@ -166,7 +166,7 @@ export const MapaResidencias: React.FC = () => {
       setData(snapshot as any);
       
       const ultimaSync = await buscarUltimaSincronizacao();
-      setUltimaSincronizacao(ultimaSync?.sincronizadoEm || null);
+      setUltimaSincronizacao(ultimaSync || null);
     } catch (erro: any) {
       addToast(erro.message || 'Erro ao carregar dados do mapa.', 'error');
     } finally {
@@ -757,7 +757,7 @@ export const MapaResidencias: React.FC = () => {
                   Sincronizar I-PEN
                 </button>
                 <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                  {carregandoSincronizacao ? 'Carregando dados...' : (ultimaSincronizacao ? `Última carga: ${formatarDataLocal(ultimaSincronizacao)}` : 'Nenhuma carga realizada')}
+                  {carregandoSincronizacao ? 'Carregando dados...' : (ultimaSincronizacao ? `Última carga: ${formatarDataLocal(ultimaSincronizacao.sincronizadoEm)}` : 'Nenhuma carga realizada')}
                 </div>
               </div>
               <button className="mr-btn mr-btn-primary"

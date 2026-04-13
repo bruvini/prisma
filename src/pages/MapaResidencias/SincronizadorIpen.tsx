@@ -6,7 +6,8 @@ import {
   extrairDadosRelatorio, 
   analisarImpactoSincronizacao, 
   executarSincronizacao,
-  agruparConflitosResidenciais
+  agruparConflitosResidenciais,
+  extrairDataEmissaoRelatorio
 } from './servicoSincronizacao';
 import { cadastrarResidenciasProvisoriasLote } from './servicoResidencias';
 import type { 
@@ -36,6 +37,7 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
   const [analisando, setAnalisando] = useState(false);
   const [registrandoResidencias, setRegistrandoResidencias] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
+  const [dataEmissaoRelatorio, setDataEmissaoRelatorio] = useState<Date | null>(null);
 
   if (!aberto) return null;
 
@@ -52,6 +54,7 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
         throw new Error('Nenhum registro válido identificado no texto colado.');
       }
       setExtraidos(regs);
+      setDataEmissaoRelatorio(extrairDataEmissaoRelatorio(textoBruto));
       const resultado = await analisarImpactoSincronizacao(regs);
       setImpacto(resultado);
       setConflitosAgrupados(agruparConflitosResidenciais(resultado));
@@ -103,7 +106,7 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
 
       let pdfBlob: Blob;
       try {
-        pdfBlob = gerarRelatorioPdfSincronizacao(impacto, res, dataSincronizacaoCliente, ultimaCarga, user.email || 'Sistema');
+        pdfBlob = gerarRelatorioPdfSincronizacao(impacto, res, dataSincronizacaoCliente, ultimaCarga, user.email || 'Sistema', dataEmissaoRelatorio);
       } catch (pdfErr) {
         console.error('Erro ao preparar PDF:', pdfErr);
         novaAba.close();
@@ -111,9 +114,9 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
         setSincronizando(false);
         return;
       }
-
+ 
       await executarSincronizacao(impacto, user.uid);
-      await registrarHistoricoSincronizacao(impacto, res, ultimaCarga, user.uid);
+      await registrarHistoricoSincronizacao(impacto, res, ultimaCarga?.sincronizadoEm || null, user.uid, dataEmissaoRelatorio);
       
       const pdfUrl = URL.createObjectURL(pdfBlob);
       novaAba.location.href = pdfUrl;
