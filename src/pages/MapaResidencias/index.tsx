@@ -60,12 +60,47 @@ const FILTROS_VAZIOS: EstadoFiltros = {
 // Helpers de Cálculo
 // ---------------------------------------------------------------------------
 
-function calcularOcupacao(residencias: (Residencia & { internos: Interno[] })[]) {
-  const capacidade = residencias.reduce((acc, r) => acc + (r.capacidade || 0), 0);
-  const ocupados = residencias.reduce((acc, r) => acc + r.internos.length, 0);
-  const perc = capacidade > 0 ? Math.round((ocupados / capacidade) * 100) : 0;
-  return { capacidade, ocupados, perc };
+type TipoCalculo = 'normal' | 'sem_capacidade' | 'capacidade_parcial';
+
+interface OcupacaoInfo {
+  capacidade: number;
+  ocupados: number;
+  perc: number;
+  tipoCalculo: TipoCalculo;
+  textoExibicao: string;
+  requerRevisao: boolean;
+  statusVisual: 'normal' | 'atencao' | 'alerta' | 'vazio';
 }
+
+function calcularOcupacao(residencias: (Residencia & { internos: Interno[] })[]): OcupacaoInfo {
+  const capacidadeTotal = residencias.reduce((acc, r) => acc + (r.capacidade || 0), 0);
+  const ocupados = residencias.reduce((acc, r) => acc + (r.internos?.length || 0), 0);
+  const perc = capacidadeTotal > 0 ? Math.round((ocupados / capacidadeTotal) * 100) : 0;
+
+  const capValidas = residencias.filter(r => (r.capacidade || 0) > 0);
+  const capZeradas = residencias.filter(r => !r.capacidade || r.capacidade === 0);
+
+  if (capValidas.length === 0) {
+    if (ocupados === 0) {
+      return { capacidade: 0, ocupados: 0, perc: 0, tipoCalculo: 'sem_capacidade', textoExibicao: "Capacidade não cadastrada", requerRevisao: true, statusVisual: 'vazio' };
+    } else {
+      return { capacidade: 0, ocupados, perc: 100, tipoCalculo: 'sem_capacidade', textoExibicao: `${ocupados} alocados · capacidade pendente`, requerRevisao: true, statusVisual: 'alerta' };
+    }
+  }
+
+  if (capZeradas.length > 0) {
+    return { capacidade: capacidadeTotal, ocupados, perc, tipoCalculo: 'capacidade_parcial', textoExibicao: `${ocupados}/${capacidadeTotal} (${perc}%) · Cap. parcial`, requerRevisao: true, statusVisual: perc >= 100 ? 'alerta' : perc >= 90 ? 'atencao' : 'normal' };
+  }
+
+  return { capacidade: capacidadeTotal, ocupados, perc, tipoCalculo: 'normal', textoExibicao: `${ocupados}/${capacidadeTotal} — ${perc}%`, requerRevisao: false, statusVisual: perc >= 100 ? 'alerta' : perc >= 90 ? 'atencao' : 'normal' };
+}
+
+const getTagClass = (status: OcupacaoInfo['statusVisual']) => {
+  if (status === 'alerta') return 'mr-ocup-over';
+  if (status === 'atencao') return 'mr-ocup-at';
+  if (status === 'vazio') return 'mr-ocup-vazio';
+  return 'mr-ocup-under';
+};
 
 // ---------------------------------------------------------------------------
 // Componente Principal: Mapa de Residências
@@ -212,6 +247,7 @@ export const MapaResidencias: React.FC = () => {
         (ocupantesPorRes.get(r.id)?.length || 0) > r.capacidade && r.capacidade > 0
       ).length,
       totalProvisorias: residencias.filter(r => r.cadastroProvisorio).length,
+      totalSemCapacidade: residencias.filter(r => !r.capacidade || r.capacidade === 0).length,
       totalInternos:    internos.length,
     };
 
@@ -301,6 +337,10 @@ export const MapaResidencias: React.FC = () => {
       <div className={`mr-tile ${visaoProcessada.metrics.totalProvisorias > 0 ? 'mr-tile-warning' : ''}`}>
         <span className="mr-tile-label">Provisórias</span>
         <span className="mr-tile-value">{visaoProcessada.metrics.totalProvisorias}</span>
+      </div>
+      <div className={`mr-tile ${visaoProcessada.metrics.totalSemCapacidade > 0 ? 'mr-tile-danger' : ''}`}>
+        <span className="mr-tile-label">Cap. Pendente</span>
+        <span className="mr-tile-value">{visaoProcessada.metrics.totalSemCapacidade}</span>
       </div>
       <div className="mr-tile">
         <span className="mr-tile-label">Internos Ativos</span>
@@ -426,8 +466,8 @@ export const MapaResidencias: React.FC = () => {
                   </span>
                 </div>
                 <div className="mr-pavilhao-ocupacao">
-                  <span className={`mr-ocup-tag ${ocupPav.perc >= 100 ? 'mr-ocup-over' : ocupPav.perc >= 90 ? 'mr-ocup-at' : 'mr-ocup-under'}`}>
-                    {ocupPav.ocupados}/{ocupPav.capacidade} — {ocupPav.perc}%
+                  <span className={`mr-ocup-tag ${getTagClass(ocupPav.statusVisual)}`}>
+                    {ocupPav.textoExibicao}
                   </span>
                 </div>
               </div>
@@ -458,8 +498,8 @@ export const MapaResidencias: React.FC = () => {
                           <span className="mr-galeria-summary">
                             {todasResGal.length} unidades
                           </span>
-                          <span className={`mr-ocup-tag mr-ocup-tag-sm ${ocupGal.perc >= 100 ? 'mr-ocup-over' : ocupGal.perc >= 90 ? 'mr-ocup-at' : 'mr-ocup-under'}`}>
-                            {ocupGal.ocupados}/{ocupGal.capacidade} ({ocupGal.perc}%)
+                          <span className={`mr-ocup-tag mr-ocup-tag-sm ${getTagClass(ocupGal.statusVisual)}`}>
+                            {ocupGal.textoExibicao}
                           </span>
                         </div>
                       </div>
@@ -476,18 +516,16 @@ export const MapaResidencias: React.FC = () => {
                                   card expandido ocupa linha inteira via grid-column span */}
                               <div className="mr-residencia-grid">
                                 {tipo.residencias.map((res) => {
-                                  const lotacao = res.internos.length;
-                                  const cap = res.capacidade;
-                                  const perc = cap > 0 ? Math.round((lotacao / cap) * 100) : 0;
-                                  const statusClass = perc >= 100
-                                    ? 'mr-occupancy-over'
-                                    : perc >= 90 ? 'mr-occupancy-at' : 'mr-occupancy-under';
+                                  const ocupRes = calcularOcupacao([res]);
+                                  const passAlert = ocupRes.statusVisual === 'alerta' ? 'mr-occupancy-over' :
+                                                    ocupRes.statusVisual === 'atencao' ? 'mr-occupancy-at' :
+                                                    ocupRes.statusVisual === 'vazio' ? 'mr-occupancy-vazio' : 'mr-occupancy-under';
                                   const ativa = residenciaAtiva === res.id;
 
                                   return (
                                     <div
                                       key={res.id}
-                                      className={`mr-res-card ${ativa ? 'mr-res-card-active mr-res-card-expanded' : ''} ${statusClass}`}
+                                      className={`mr-res-card ${ativa ? 'mr-res-card-active mr-res-card-expanded' : ''} ${passAlert}`}
                                       onClick={e => {
                                         e.stopPropagation();
                                         setResidenciaAtiva(ativa ? null : res.id);
@@ -499,25 +537,39 @@ export const MapaResidencias: React.FC = () => {
                                           {res.cadastroProvisorio && (
                                             <span className="mr-badge-mini mr-badge-provisoria">Provisória</span>
                                           )}
-                                          {res.pendenteRevisao && (
-                                            <span className="mr-badge-mini mr-badge-revisao">Revisão</span>
+                                          {(res.pendenteRevisao || ocupRes.requerRevisao) && (
+                                            <span className="mr-badge-mini mr-badge-revisao" title="Necessita revisão de cadastro">
+                                              {ocupRes.tipoCalculo === 'sem_capacidade' ? 'Revisar Capacidade' : 'Revisar Estrutural'}
+                                            </span>
                                           )}
                                         </div>
                                       </div>
 
                                       <div className="mr-res-info">
                                         <div className="mr-res-occupancy">
-                                          <div className="mr-res-meter">
+                                          <div className={`mr-res-meter ${ocupRes.tipoCalculo === 'sem_capacidade' ? 'mr-res-meter-alerta' : ''}`}>
                                             <div
-                                              className="mr-res-meter-bar"
-                                              style={{ width: `${Math.min(perc, 100)}%` }}
+                                              className={`mr-res-meter-bar ${ocupRes.tipoCalculo === 'sem_capacidade' ? 'mr-res-meter-bar-striped' : ''}`}
+                                              style={{ width: `${Math.min(ocupRes.perc, 100)}%` }}
                                             />
                                           </div>
-                                          <span className="mr-res-percent">{perc}%</span>
+                                          {ocupRes.tipoCalculo === 'sem_capacidade' && ocupRes.ocupados > 0 ? (
+                                            <span className="mr-res-percent" style={{ opacity: 0.5 }}>--</span>
+                                          ) : (
+                                            <span className="mr-res-percent">{ocupRes.perc}%</span>
+                                          )}
                                         </div>
                                         <div className="mr-res-stats">
-                                          <span>Cap: {cap}</span>
-                                          <span>Ocup: {lotacao}</span>
+                                          {ocupRes.tipoCalculo === 'sem_capacidade' ? (
+                                            <span className="mr-res-stat-destaque" title="Capacidade não informada">
+                                              {ocupRes.ocupados > 0 ? `${ocupRes.ocupados} alocados` : 'Cap. Não Cadastrada'}
+                                            </span>
+                                          ) : (
+                                            <>
+                                              <span>Cap: {ocupRes.capacidade}</span>
+                                              <span>Ocup: {ocupRes.ocupados}</span>
+                                            </>
+                                          )}
                                         </div>
                                       </div>
 

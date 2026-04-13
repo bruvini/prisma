@@ -896,6 +896,13 @@
   border-color: rgba(244, 67, 54, 0.3);
 }
 
+.mr-ocup-vazio {
+  background: var(--color-bg-light);
+  color: var(--color-text-muted);
+  border-color: rgba(0, 0, 0, 0.1);
+  font-style: italic;
+}
+
 .mr-pavilhao-content {
   padding: var(--spacing-6);
   display: flex;
@@ -1073,6 +1080,28 @@
 .mr-occupancy-under .mr-res-meter-bar { background: #4caf50; }
 .mr-occupancy-at .mr-res-meter-bar { background: #ff9800; }
 .mr-occupancy-over .mr-res-meter-bar { background: #f44336; }
+.mr-occupancy-vazio .mr-res-meter-bar { background: #e0e0e0; }
+
+.mr-res-meter-alerta {
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.mr-res-meter-bar-striped {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.25),
+    rgba(255, 255, 255, 0.25) 8px,
+    transparent 8px,
+    transparent 16px
+  );
+  background-color: #f44336 !important;
+}
+
+.mr-res-stat-destaque {
+  color: #b71c1c;
+  font-weight: 700;
+  font-size: 10px;
+}
 
 .mr-res-stats {
   font-size: var(--font-size-xs);
