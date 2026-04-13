@@ -1,7 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { ImpactoSincronizacao, ResumoSincronizacao } from './servicoSincronizacao';
+import type { ImpactoSincronizacao, ResumoSincronizacao, RegistroExtraido } from './servicoSincronizacao';
+import { TipoResidenciaLabel } from './tipos';
 
 function formatDateBr(dateAny: any): string {
   if (!dateAny) return 'N/A';
@@ -23,7 +24,7 @@ function formatDateBr(dateAny: any): string {
     const sec = String(dateObj.getSeconds()).padStart(2, '0');
     
     return `${d}/${m}/${y} ${h}:${min}:${sec}`;
-  } catch (e) {
+  } catch (_e) {
     return 'Data Inválida';
   }
 }
@@ -37,6 +38,15 @@ export function gerarRelatorioPdfSincronizacao(
 ) {
   const doc = new jsPDF('p', 'mm', 'a4');
   let cursorY = 20;
+
+  const verificarQuebra = (alturaNecessaria: number) => {
+    if (cursorY + alturaNecessaria > 270) {
+      doc.addPage();
+      cursorY = 20;
+      return true;
+    }
+    return false;
+  };
 
   // 1. Cabeçalho Institucional
   doc.setFontSize(16);
@@ -75,147 +85,195 @@ export function gerarRelatorioPdfSincronizacao(
     startY: cursorY,
     head: [['Métrica', 'Quantidade']],
     body: [
-      ['Total Lido (I-PEN)', resumo.totalLido],
+      ['Total Lido (I-PEN 1.8)', resumo.totalLido],
       ['Novos (Inclusões)', resumo.totalNovos],
       ['Movidos (Realocações)', resumo.totalRealocados],
       ['Reativados', resumo.totalReativados],
       ['Saídas (Inativados)', resumo.totalInativados],
-      ['Sem Alteração', resumo.totalSemMudanca],
-      ['Conflitos de Registro', resumo.totalConflitos],
-      ['Residências Ausentes Criadas', resumo.totalResidenciasAusentes]
+      ['Sem Alteração no Mapa', resumo.totalSemMudanca],
+      ['Conflitos (Não Processados)', resumo.totalConflitos],
+      ['Unidades Provisórias Criadas', resumo.totalResidenciasAusentes]
     ],
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+    headStyles: { fillColor: [44, 62, 80], textColor: 255 },
     styles: { fontSize: 9 },
-    columnStyles: { 1: { halign: 'center' } },
+    columnStyles: { 1: { halign: 'center', cellWidth: 30 } },
     margin: { left: 14 }
   });
 
   cursorY = (doc as any).lastAutoTable.finalY + 15;
 
-  const verificarQuebra = (alturaNecessaria: number) => {
-    if (cursorY + alturaNecessaria > 280) {
-      doc.addPage();
-      cursorY = 20;
+  const renderizarSeccaoAgrupada = (titulo: string, itens: RegistroExtraido[], color: [number, number, number]) => {
+    verificarQuebra(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(color[0], color[1], color[2]);
+    doc.text(titulo, 14, cursorY);
+    doc.setTextColor(0, 0, 0);
+    cursorY += 8;
+
+    if (itens.length === 0) {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(10);
+      doc.text('Nenhuma movimentação identificada nesta categoria.', 14, cursorY);
+      cursorY += 15;
+      return;
     }
+
+    // Agrupamento: Pavilhão -> Galeria -> Tipo -> Residencia
+    const hierarquia: any = {};
+    itens.forEach(reg => {
+      const p = reg.pavilhao;
+      const g = reg.galeria;
+      const t = TipoResidenciaLabel[reg.tipoResidencia] || reg.tipoResidencia;
+      const r = reg.numeroResidencia;
+
+      if (!hierarquia[p]) hierarquia[p] = {};
+      if (!hierarquia[p][g]) hierarquia[p][g] = {};
+      if (!hierarquia[p][g][t]) hierarquia[p][g][t] = {};
+      if (!hierarquia[p][g][t][r]) hierarquia[p][g][t][r] = [];
+      hierarquia[p][g][t][r].push(reg);
+    });
+
+    Object.keys(hierarquia).sort().forEach(pav => {
+      verificarQuebra(15);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(`Pavilhão: ${pav}`, 14, cursorY);
+      cursorY += 6;
+
+      Object.keys(hierarquia[pav]).sort().forEach(gal => {
+        verificarQuebra(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text(`Galeria: ${gal}`, 18, cursorY);
+        cursorY += 5;
+
+        Object.keys(hierarquia[pav][gal]).sort().forEach(tipo => {
+          Object.keys(hierarquia[pav][gal][tipo]).sort().forEach(res => {
+            const internos = hierarquia[pav][gal][tipo][res];
+            verificarQuebra(12 + (internos.length * 5));
+            
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.text(`${tipo} - Unidade: ${res}`, 22, cursorY);
+            cursorY += 4;
+
+            const tableData = internos.map((int: any) => [
+              int.prontuario,
+              int.nomeCompleto,
+              int.situacaoIpen
+            ]);
+
+            autoTable(doc, {
+              startY: cursorY,
+              head: [['Prontuário', 'Nome Completo', 'Situação I-PEN']],
+              body: tableData,
+              theme: 'plain',
+              styles: { fontSize: 8, cellPadding: 1 },
+              headStyles: { fontStyle: 'bold', textColor: 100 },
+              margin: { left: 26 },
+              tableWidth: 170
+            });
+
+            cursorY = (doc as any).lastAutoTable.finalY + 4;
+          });
+        });
+      });
+      cursorY += 2;
+    });
+    cursorY += 5;
   };
 
-  // Helper para agrupar e ordenar locais
-  const buildCurrentLocationStr = (reg: any) => `${reg.pavilhao}/${reg.galeria} / ${reg.piso} / ${reg.numeroResidencia}`;
-
   // 4. Novos Detentos
-  if (impacto.novos.length > 0) {
-    verificarQuebra(20);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(`Novos Internos Alocados (${impacto.novos.length})`, 14, cursorY);
-    
-    // Ordenar novos por local
-    const novosSort = [...impacto.novos].sort((a,b) => buildCurrentLocationStr(a).localeCompare(buildCurrentLocationStr(b)));
-    const tableData = novosSort.map(n => [
-      n.prontuario,
-      n.nomeCompleto,
-      buildCurrentLocationStr(n),
-      n.situacaoIpen
-    ]);
+  renderizarSeccaoAgrupada('Novos Internos Alocados', impacto.novos, [39, 174, 96]);
 
-    autoTable(doc, {
-      startY: cursorY + 4,
-      head: [['Prontuário', 'Nome Completo', 'Nova Localização (Pav/Gal/Piso/Num)', 'Situação I-PEN']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [39, 174, 96], textColor: 255 },
-      styles: { fontSize: 8 }
-    });
-    cursorY = (doc as any).lastAutoTable.finalY + 10;
-  }
+  // 5. Reativados
+  const itensReativados = impacto.reativados.map(r => r.registro);
+  renderizarSeccaoAgrupada('Internos Reativados', itensReativados, [142, 68, 173]);
 
-  // 5. Movidos (Realocados)
-  if (impacto.realocados.length > 0) {
-    verificarQuebra(20);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(`Internos Movimentados (${impacto.realocados.length})`, 14, cursorY);
-    
-    // Obter o local anterior não está imediatamente fácil só pelo Residencia ID do impacto,
-    // mas o relatório no futuro deve ter. Exibiremos ID caso não haja string. Vamos exibir Prontuário, Nome, Destino.
-    const tableData = impacto.realocados.map(m => {
-      const origemDesc = m.residenciaAnteriorDescricao || m.residenciaAnteriorId || 'Desconhecida';
+  // 6. Movidos (Realocados)
+  verificarQuebra(20);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(243, 156, 18);
+  doc.text('Internos Movimentados (Realocações)', 14, cursorY);
+  doc.setTextColor(0, 0, 0);
+  cursorY += 8;
+
+  if (impacto.realocados.length === 0) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.text('Nenhuma movimentação identificada nesta categoria.', 14, cursorY);
+    cursorY += 15;
+  } else {
+    const tableDataMovidos = impacto.realocados.map(m => {
+      const de = m.residenciaAnteriorDescricao || 'Local anterior não identificado';
+      const para = `${m.registro.pavilhao}/${m.registro.galeria}/${m.registro.piso} - ${m.registro.numeroResidencia}`;
       return [
         m.registro.prontuario,
         m.registro.nomeCompleto,
-        origemDesc,
-        buildCurrentLocationStr(m.registro)
+        de,
+        `→ ${para}`
       ];
     });
 
     autoTable(doc, {
-      startY: cursorY + 4,
-      head: [['Prontuário', 'Nome', 'Local Anterior', 'Novo Local (Aberto)']],
-      body: tableData,
+      startY: cursorY,
+      head: [['Prontuário', 'Nome Completo', 'De (Origem)', 'Para (Destino)']],
+      body: tableDataMovidos,
       theme: 'grid',
       headStyles: { fillColor: [243, 156, 18], textColor: 255 },
-      styles: { fontSize: 8 }
+      styles: { fontSize: 8 },
+      columnStyles: { 
+        2: { cellWidth: 55 },
+        3: { cellWidth: 55, fontStyle: 'bold' } 
+      }
     });
-    cursorY = (doc as any).lastAutoTable.finalY + 10;
-  }
-
-  // 6. Reativados
-  if (impacto.reativados.length > 0) {
-    verificarQuebra(20);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(`Internos Reativados (${impacto.reativados.length})`, 14, cursorY);
-    
-    const tableData = impacto.reativados.map(r => [
-      r.registro.prontuario,
-      r.registro.nomeCompleto,
-      buildCurrentLocationStr(r.registro),
-      r.registro.situacaoIpen
-    ]);
-
-    autoTable(doc, {
-      startY: cursorY + 4,
-      head: [['Prontuário', 'Nome Completo', 'Local Atual', 'Situação I-PEN']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [142, 68, 173], textColor: 255 },
-      styles: { fontSize: 8 }
-    });
-    cursorY = (doc as any).lastAutoTable.finalY + 10;
+    cursorY = (doc as any).lastAutoTable.finalY + 15;
   }
 
   // 7. Saídas
-  if (impacto.inativados.length > 0) {
-    verificarQuebra(20);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(`Saídas Confirmadas - Inativados (${impacto.inativados.length})`, 14, cursorY);
-    
-    const tableDataInativados = impacto.inativados.map(i => [
+  verificarQuebra(20);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(192, 57, 43);
+  doc.text('Saídas Confirmadas (Inativados)', 14, cursorY);
+  doc.setTextColor(0, 0, 0);
+  cursorY += 8;
+
+  if (impacto.inativados.length === 0) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.text('Nenhuma movimentação identificada nesta categoria.', 14, cursorY);
+    cursorY += 15;
+  } else {
+    const tableDataSaidas = impacto.inativados.map(i => [
       i.prontuario,
       i.nome,
-      'Não mapeado localmente',
+      i.ultimaResidenciaDescricao || 'Local não registrado',
       formatDateBr(dataAtual)
     ]);
 
     autoTable(doc, {
-      startY: cursorY + 4,
-      head: [['Prontuário', 'Nome Completo', 'Último Local Conhecido', 'Data de Inativação']],
-      body: tableDataInativados,
+      startY: cursorY,
+      head: [['Prontuário', 'Nome Completo', 'Último Local em Atividade', 'Data de Inativação']],
+      body: tableDataSaidas,
       theme: 'grid',
       headStyles: { fillColor: [192, 57, 43], textColor: 255 },
       styles: { fontSize: 8 }
     });
-    cursorY = (doc as any).lastAutoTable.finalY + 10;
+    cursorY = (doc as any).lastAutoTable.finalY + 15;
   }
 
-  // Paginação
-  const pageCount = (doc.internal as any).getNumberOfPages ? (doc.internal as any).getNumberOfPages() : doc.internal.pages.length - 1;
-  for (let i = 1; i <= pageCount; i++) {
+  // Rodapé e Paginação
+  const lastPageNum = (doc.internal as any).getNumberOfPages ? (doc.internal as any).getNumberOfPages() : (doc.internal as any).pages.length - 1;
+  for (let i = 1; i <= lastPageNum; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
-    doc.text(`Página ${i} de ${pageCount} - PRISMA-SP`, 105, 290, { align: 'center' });
+    doc.setTextColor(150);
+    doc.text(`Documento gerado pelo Sistema PRISMA-SP (Gestão de Residências) em ${formatDateBr(new Date())}`, 14, 285);
+    doc.text(`Página ${i} de ${lastPageNum}`, 196, 285, { align: 'right' });
   }
 
   return doc.output('blob');

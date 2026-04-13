@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Mapa de Residências — Serviço de Sincronização I-PEN
  * Implementa o parser do relatório 1.8 e a lógica de reconcialidação de alocados.
@@ -47,7 +48,12 @@ export interface ImpactoSincronizacao {
     residenciaAnteriorId: string;
     residenciaAnteriorDescricao?: string;
   }[];
-  inativados: { internoId: string; nome: string; prontuario: string }[];
+  inativados: { 
+    internoId: string; 
+    nome: string; 
+    prontuario: string;
+    ultimaResidenciaDescricao?: string;
+  }[];
   semMudanca: string[]; // Listagem de prontuários
   conflitos: { registro: RegistroExtraido; motivo: string }[];
 }
@@ -374,10 +380,14 @@ export async function analisarImpactoSincronizacao(registros: RegistroExtraido[]
   // 4. Identifica inativados (estavam ativos no PRISMA mas não apareceram no relatório I-PEN 1.8)
   internosAtivosMap.forEach((dados, prontuario) => {
     if (!prontuariosNoRelatorio.has(prontuario)) {
+      const resObj = dados.residenciaAtualId ? residenciasIdMap.get(dados.residenciaAtualId) : null;
+      const resDesc = resObj ? `${resObj.pavilhao}/${resObj.galeria}/${resObj.piso} / ${resObj.numeroResidencia}` : undefined;
+      
       impacto.inativados.push({
         internoId: dados.id,
         nome: dados.nomeCompleto,
         prontuario: dados.prontuario,
+        ultimaResidenciaDescricao: resDesc
       });
     }
   });
