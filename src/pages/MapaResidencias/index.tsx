@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type React from 'react';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +20,7 @@ import {
 import type { Residencia, FormDataResidencia, OcupacaoAtual, Interno } from './tipos';
 import { SincronizadorIpen } from './SincronizadorIpen';
 import { GestaoResidenciasModal } from './GestaoResidenciasModal';
+import { buscarUltimaSincronizacao } from './servicoSincronizacaoIpenLog';
 import './MapaResidencias.css';
 
 // ---------------------------------------------------------------------------
@@ -102,6 +104,21 @@ const getTagClass = (status: OcupacaoInfo['statusVisual']) => {
   return 'mr-ocup-under';
 };
 
+
+
+const formatarDataLocal = (dateAny: any) => {
+  if (!dateAny) return '';
+  const dateObj = dateAny.toDate ? dateAny.toDate() : new Date(dateAny);
+  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '';
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const y = dateObj.getFullYear();
+  const h = String(dateObj.getHours()).padStart(2, '0');
+  const min = String(dateObj.getMinutes()).padStart(2, '0');
+  const s = String(dateObj.getSeconds()).padStart(2, '0');
+  return `${d}/${m}/${y} ${h}:${min}:${s}`;
+};
+
 // ---------------------------------------------------------------------------
 // Componente Principal: Mapa de Residências
 // ---------------------------------------------------------------------------
@@ -123,6 +140,8 @@ export const MapaResidencias: React.FC = () => {
   // Estados de Modais
   const [gestaoAberta, setGestaoAberta] = useState(false);
   const [sincronizadorAberto, setSincronizadorAberto] = useState(false);
+  const [ultimaSincronizacao, setUltimaSincronizacao] = useState<any>(null);
+  const [carregandoSincronizacao, setCarregandoSincronizacao] = useState(true);
 
   // Estados de CRUD
   const [formAberto, setFormAberto] = useState(false);
@@ -145,10 +164,14 @@ export const MapaResidencias: React.FC = () => {
     try {
       const snapshot = await buscarVisaoOperacional();
       setData(snapshot as any);
+      
+      const ultimaSync = await buscarUltimaSincronizacao();
+      setUltimaSincronizacao(ultimaSync?.sincronizadoEm || null);
     } catch (erro: any) {
       addToast(erro.message || 'Erro ao carregar dados do mapa.', 'error');
     } finally {
       setCarregando(false);
+      setCarregandoSincronizacao(false);
     }
   }, [addToast]);
 
@@ -727,16 +750,21 @@ export const MapaResidencias: React.FC = () => {
         </div>
         <div className="mr-page-actions">
           {user?.email === 'admin@prisma.com' && (
-            <>
-              <button className="mr-btn mr-btn-ghost"
-                onClick={() => setSincronizadorAberto(true)}>
-                Sincronizar I-PEN
-              </button>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                <button className="mr-btn mr-btn-ghost"
+                  onClick={() => setSincronizadorAberto(true)}>
+                  Sincronizar I-PEN
+                </button>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                  {carregandoSincronizacao ? 'Carregando dados...' : (ultimaSincronizacao ? `Última carga: ${formatarDataLocal(ultimaSincronizacao)}` : 'Nenhuma carga realizada')}
+                </div>
+              </div>
               <button className="mr-btn mr-btn-primary"
-                onClick={() => setGestaoAberta(true)}>
+                onClick={() => setGestaoAberta(true)} style={{ height: 'fit-content' }}>
                 Gestão de Residências
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -760,6 +788,7 @@ export const MapaResidencias: React.FC = () => {
         aberto={sincronizadorAberto}
         aoFechar={() => setSincronizadorAberto(false)}
         aoConcluir={carregarDados}
+        ultimaCarga={ultimaSincronizacao}
       />
 
       {renderizarModalForm()}

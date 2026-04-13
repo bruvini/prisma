@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -14,14 +15,17 @@ import type {
   ConflitoResidencialAgrupado
 } from './servicoSincronizacao';
 import { TipoResidenciaLabel } from './tipos';
+import { registrarHistoricoSincronizacao } from './servicoSincronizacaoIpenLog';
+import { gerarRelatorioPdfSincronizacao } from './geradorPdfSincronizacao';
 
 interface Props {
   aberto: boolean;
   aoFechar: () => void;
   aoConcluir: () => void;
+  ultimaCarga: any | null;
 }
 
-export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConcluir }) => {
+export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConcluir, ultimaCarga }) => {
   const { user } = useAuth();
   const { addToast } = useToast();
 
@@ -81,10 +85,22 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
 
   const manipularSincronizacao = async () => {
     if (!impacto || !user) return;
+    const res = calcularResumo();
+    if (!res) return;
 
     setSincronizando(true);
     try {
       await executarSincronizacao(impacto, user.uid);
+      
+      const logSalvo = await registrarHistoricoSincronizacao(impacto, res, ultimaCarga, user.uid);
+      
+      try {
+        gerarRelatorioPdfSincronizacao(impacto, res, logSalvo.sincronizadoEm, ultimaCarga, user.email || 'Admin');
+      } catch (pdfErr) {
+        console.error('Erro ao gerar PDF:', pdfErr);
+        addToast('Sincronização concluída, mas erro ao gerar PDF.', 'warning');
+      }
+
       addToast('Sincronização concluída com sucesso!', 'success');
       aoConcluir();
       aoFechar();
