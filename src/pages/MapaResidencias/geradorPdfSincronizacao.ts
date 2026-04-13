@@ -1,14 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import type { ImpactoSincronizacao, ResumoSincronizacao } from './servicoSincronizacao';
-
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    lastAutoTable: { finalY: number };
-  }
-}
 
 function formatDateBr(dateAny: any): string {
   if (!dateAny) return 'N/A';
@@ -78,7 +71,7 @@ export function gerarRelatorioPdfSincronizacao(
   doc.text('Resumo Executivo', 14, cursorY);
 
   cursorY += 4;
-  doc.autoTable({
+  autoTable(doc, {
     startY: cursorY,
     head: [['Métrica', 'Quantidade']],
     body: [
@@ -98,7 +91,7 @@ export function gerarRelatorioPdfSincronizacao(
     margin: { left: 14 }
   });
 
-  cursorY = doc.lastAutoTable.finalY + 15;
+  cursorY = (doc as any).lastAutoTable.finalY + 15;
 
   const verificarQuebra = (alturaNecessaria: number) => {
     if (cursorY + alturaNecessaria > 280) {
@@ -126,7 +119,7 @@ export function gerarRelatorioPdfSincronizacao(
       n.situacaoIpen
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: cursorY + 4,
       head: [['Prontuário', 'Nome Completo', 'Nova Localização (Pav/Gal/Piso/Num)', 'Situação I-PEN']],
       body: tableData,
@@ -134,7 +127,7 @@ export function gerarRelatorioPdfSincronizacao(
       headStyles: { fillColor: [39, 174, 96], textColor: 255 },
       styles: { fontSize: 8 }
     });
-    cursorY = doc.lastAutoTable.finalY + 10;
+    cursorY = (doc as any).lastAutoTable.finalY + 10;
   }
 
   // 5. Movidos (Realocados)
@@ -146,22 +139,25 @@ export function gerarRelatorioPdfSincronizacao(
     
     // Obter o local anterior não está imediatamente fácil só pelo Residencia ID do impacto,
     // mas o relatório no futuro deve ter. Exibiremos ID caso não haja string. Vamos exibir Prontuário, Nome, Destino.
-    const tableData = impacto.realocados.map(m => [
-      m.registro.prontuario,
-      m.registro.nomeCompleto,
-      buildCurrentLocationStr(m.registro),
-      m.registro.situacaoIpen
-    ]);
+    const tableData = impacto.realocados.map(m => {
+      const origemDesc = m.residenciaAnteriorDescricao || m.residenciaAnteriorId || 'Desconhecida';
+      return [
+        m.registro.prontuario,
+        m.registro.nomeCompleto,
+        origemDesc,
+        buildCurrentLocationStr(m.registro)
+      ];
+    });
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: cursorY + 4,
-      head: [['Prontuário', 'Nome Completo', 'Nova Localização (Destino)', 'Situação I-PEN']],
+      head: [['Prontuário', 'Nome', 'Local Anterior', 'Novo Local (Aberto)']],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [243, 156, 18], textColor: 255 },
       styles: { fontSize: 8 }
     });
-    cursorY = doc.lastAutoTable.finalY + 10;
+    cursorY = (doc as any).lastAutoTable.finalY + 10;
   }
 
   // 6. Reativados
@@ -178,7 +174,7 @@ export function gerarRelatorioPdfSincronizacao(
       r.registro.situacaoIpen
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: cursorY + 4,
       head: [['Prontuário', 'Nome Completo', 'Local Atual', 'Situação I-PEN']],
       body: tableData,
@@ -186,7 +182,7 @@ export function gerarRelatorioPdfSincronizacao(
       headStyles: { fillColor: [142, 68, 173], textColor: 255 },
       styles: { fontSize: 8 }
     });
-    cursorY = doc.lastAutoTable.finalY + 10;
+    cursorY = (doc as any).lastAutoTable.finalY + 10;
   }
 
   // 7. Saídas
@@ -196,30 +192,31 @@ export function gerarRelatorioPdfSincronizacao(
     doc.setFontSize(11);
     doc.text(`Saídas Confirmadas - Inativados (${impacto.inativados.length})`, 14, cursorY);
     
-    const tableData = impacto.inativados.map(i => [
+    const tableDataInativados = impacto.inativados.map(i => [
       i.prontuario,
       i.nome,
+      'Não mapeado localmente',
       formatDateBr(dataAtual)
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: cursorY + 4,
-      head: [['Prontuário', 'Nome Completo', 'Data/Hora de Inativação']],
-      body: tableData,
+      head: [['Prontuário', 'Nome Completo', 'Último Local Conhecido', 'Data de Inativação']],
+      body: tableDataInativados,
       theme: 'grid',
       headStyles: { fillColor: [192, 57, 43], textColor: 255 },
       styles: { fontSize: 8 }
     });
-    cursorY = doc.lastAutoTable.finalY + 10;
+    cursorY = (doc as any).lastAutoTable.finalY + 10;
   }
 
   // Paginação
-  const pageCount = doc.internal.pages.length - 1;
+  const pageCount = (doc.internal as any).getNumberOfPages ? (doc.internal as any).getNumberOfPages() : doc.internal.pages.length - 1;
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.text(`Página ${i} de ${pageCount} - PRISMA-SP`, 105, 290, { align: 'center' });
   }
 
-  doc.output('dataurlnewwindow', { filename: 'Relatorio_Sincronizacao_Ipen.pdf' });
+  return doc.output('blob');
 }

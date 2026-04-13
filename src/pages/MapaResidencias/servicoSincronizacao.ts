@@ -41,7 +41,12 @@ export interface RegistroExtraido {
 export interface ImpactoSincronizacao {
   novos: RegistroExtraido[];
   reativados: { registro: RegistroExtraido; internoId: string }[];
-  realocados: { registro: RegistroExtraido; internoId: string; residenciaAnteriorId: string }[];
+  realocados: { 
+    registro: RegistroExtraido; 
+    internoId: string; 
+    residenciaAnteriorId: string;
+    residenciaAnteriorDescricao?: string;
+  }[];
   inativados: { internoId: string; nome: string; prontuario: string }[];
   semMudanca: string[]; // Listagem de prontuários
   conflitos: { registro: RegistroExtraido; motivo: string }[];
@@ -314,7 +319,11 @@ export async function analisarImpactoSincronizacao(registros: RegistroExtraido[]
   // 2. Mapeia residências existentes por chave única para validar localizações
   const snapResidencias = await getDocs(query(collection(db, 'residencias'), where('ativo', '==', true)));
   const residenciasMap = new Map<string, string>(); // chaveUnica -> id
-  snapResidencias.forEach(d => residenciasMap.set(d.data().chaveUnica, d.id));
+  const residenciasIdMap = new Map<string, any>();
+  snapResidencias.forEach(d => {
+    residenciasMap.set(d.data().chaveUnica, d.id);
+    residenciasIdMap.set(d.id, d.data());
+  });
 
   // 3. Processa registros extraídos do relatório
   const prontuariosNoRelatorio = new Set<string>();
@@ -336,10 +345,13 @@ export async function analisarImpactoSincronizacao(registros: RegistroExtraido[]
       if (internoExistente.residenciaAtualId === residenciaId) {
         impacto.semMudanca.push(reg.prontuario);
       } else {
+        const resObj = internoExistente.residenciaAtualId ? residenciasIdMap.get(internoExistente.residenciaAtualId) : null;
+        const resDesc = resObj ? `${resObj.pavilhao}/${resObj.galeria}/${resObj.piso} / ${resObj.numeroResidencia}` : undefined;
         impacto.realocados.push({
           registro: reg,
           internoId: internoExistente.id,
           residenciaAnteriorId: internoExistente.residenciaAtualId,
+          residenciaAnteriorDescricao: resDesc
         });
       }
     } else {

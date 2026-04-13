@@ -88,23 +88,41 @@ export const SincronizadorIpen: React.FC<Props> = ({ aberto, aoFechar, aoConclui
     const res = calcularResumo();
     if (!res) return;
 
+    const novaAba = window.open('', '_blank');
+    if (!novaAba) {
+      addToast('Abertura de nova aba bloqueada. Permita popups para gerar o relatório.', 'error');
+      return;
+    }
+    
+    novaAba.document.write('<html><head><title>Gerando Relatório...</title></head><body style="font-family: sans-serif; padding: 20px;"><h2>Preparando relatório institucional...</h2><p>Por favor aguarde enquanto a sincronização finaliza.</p></body></html>');
+    novaAba.document.close();
+
     setSincronizando(true);
     try {
-      await executarSincronizacao(impacto, user.uid);
-      
-      const logSalvo = await registrarHistoricoSincronizacao(impacto, res, ultimaCarga, user.uid);
-      
+      const dataSincronizacaoCliente = new Date();
+
+      let pdfBlob: Blob;
       try {
-        gerarRelatorioPdfSincronizacao(impacto, res, logSalvo.sincronizadoEm, ultimaCarga, user.email || 'Admin');
+        pdfBlob = gerarRelatorioPdfSincronizacao(impacto, res, dataSincronizacaoCliente, ultimaCarga, user.email || 'Sistema');
       } catch (pdfErr) {
-        console.error('Erro ao gerar PDF:', pdfErr);
-        addToast('Sincronização concluída, mas erro ao gerar PDF.', 'warning');
+        console.error('Erro ao preparar PDF:', pdfErr);
+        novaAba.close();
+        addToast('Falha na preparação do PDF. Sincronização cancelada.', 'error');
+        setSincronizando(false);
+        return;
       }
+
+      await executarSincronizacao(impacto, user.uid);
+      await registrarHistoricoSincronizacao(impacto, res, ultimaCarga, user.uid);
+      
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      novaAba.location.href = pdfUrl;
 
       addToast('Sincronização concluída com sucesso!', 'success');
       aoConcluir();
       aoFechar();
     } catch (erro: any) {
+      novaAba.close();
       addToast(erro.message || 'Erro na sincronização.', 'error');
     } finally {
       setSincronizando(false);
