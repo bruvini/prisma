@@ -5,7 +5,7 @@ import {
   updateDoc, 
   doc, 
   query, 
-  where, 
+  deleteDoc, 
   Timestamp,
   type DocumentData,
   type QueryDocumentSnapshot
@@ -33,8 +33,7 @@ const converterIndicador = (doc: QueryDocumentSnapshot<DocumentData>): Indicador
  */
 export async function listarIndicadores(): Promise<Indicador[]> {
   const q = query(
-    collection(db, COLLECTION_NAME), 
-    where('ativo', '==', true)
+    collection(db, COLLECTION_NAME)
   );
   
   const querySnapshot = await getDocs(q);
@@ -53,7 +52,6 @@ export async function criarIndicador(dados: FormDataIndicador): Promise<string> 
   
   const payload = {
     ...dados,
-    ativo: true,
     criadoEm: agora,
     atualizadoEm: agora,
     criadoPor: user?.email || 'sistema',
@@ -81,15 +79,9 @@ export async function atualizarIndicador(id: string, dados: Partial<FormDataIndi
 }
 
 /**
- * Inativa (exclusão lógica) um indicador.
+ * Exclui permanentemente um indicador do Firestore.
  */
-export async function inativarIndicador(id: string): Promise<void> {
-  const user = auth.currentUser;
+export async function excluirIndicador(id: string): Promise<void> {
   const docRef = doc(db, COLLECTION_NAME, id);
-  
-  await updateDoc(docRef, {
-    ativo: false,
-    atualizadoEm: new Date(),
-    atualizadoPor: user?.email || 'sistema'
-  });
+  await deleteDoc(docRef);
 }

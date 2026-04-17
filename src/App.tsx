@@ -8,6 +8,7 @@ import { Home } from './pages/Home';
 import { Placeholder } from './components/ui/Placeholder';
 import { MapaResidencias } from './pages/MapaResidencias';
 import { Indicadores } from './pages/Indicadores';
+import { Triagem } from './pages/Triagem';
 import { appModules } from './config/modules';
 
 // Placeholder genérico para exibir módulos pela config
@@ -51,10 +52,12 @@ function App() {
               <Route path="/residencias" element={<MapaResidencias />} />
               {/* Módulo de Indicadores Metodológicos */}
               <Route path="/indicadores" element={<Indicadores />} />
+              {/* Módulo de Triagem Clínica */}
+              <Route path="/triagem" element={<Triagem />} />
               {/* Redirect de compatibilidade da rota antiga */}
               <Route path="/mapa-celas" element={<Navigate to="/residencias" replace />} />
               {/* Demais módulos ainda como placeholder */}
-              {appModules.filter(m => !['inicio', 'residencias', 'indicadores'].includes(m.id)).map(m => (
+              {appModules.filter(m => !['inicio', 'residencias', 'indicadores', 'triagem'].includes(m.id)).map(m => (
                 <Route
                   key={m.id}
                   path={m.path.replace('/', '')}

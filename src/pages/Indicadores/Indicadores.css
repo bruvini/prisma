@@ -488,17 +488,34 @@
    Modal CRUD (amplo, com scroll interno)
 --------------------------------------------------------------------------- */
 
+.ind-modal, 
+.ind-modal *,
+.ind-modal *::before,
+.ind-modal *::after {
+  box-sizing: border-box;
+}
+
 .ind-modal {
   background: var(--color-bg-white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   width: 100%;
   max-width: 960px;
-  max-height: 92vh;
+  height: 88vh; /* Slightly smaller to guarantee fit with margins */
   display: flex;
   flex-direction: column;
   animation: ind-slide-up 0.2s ease;
   border: 1px solid var(--color-border);
+  overflow: hidden; 
+  position: relative;
+}
+
+.ind-modal-form {
+  flex: 1; /* Take all available space in the 90vh container */
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* CRITICAL: Allow this flex child to shrink below its content height */
+  overflow: hidden;
 }
 
 @keyframes ind-slide-up {
@@ -601,12 +618,14 @@
 }
 
 .ind-modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--spacing-8);
+  flex: 1; /* Stretch to fill space between nav and footer */
+  overflow-y: auto; /* Enable internal scrolling */
+  padding: var(--spacing-6) var(--spacing-8);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-8);
+  gap: var(--spacing-6);
+  min-height: 0; /* Important for flex-basis interaction with scroll */
+  -webkit-overflow-scrolling: touch;
 }
 
 .ind-modal-footer {
@@ -627,11 +646,12 @@
 .ind-section {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-5);
   background: var(--color-bg-white);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  flex-shrink: 0; /* CRITICAL: Do not let section collapse under flex pressure */
+  width: 100%;
 }
 
 .ind-section-header {

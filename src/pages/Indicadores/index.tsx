@@ -5,7 +5,7 @@ import {
   listarIndicadores, 
   criarIndicador, 
   atualizarIndicador, 
-  inativarIndicador 
+  excluirIndicador 
 } from './servicoIndicadores';
 import { 
   type Indicador, 
@@ -36,7 +36,7 @@ interface ConfirmModalProps {
   aoCancelar: () => void;
 }
 
-const ModalConfirmacaoInativacao: React.FC<ConfirmModalProps> = ({ 
+const ModalConfirmacaoExclusao: React.FC<ConfirmModalProps> = ({ 
   indicador, 
   confirmando, 
   aoConfirmar, 
@@ -48,19 +48,19 @@ const ModalConfirmacaoInativacao: React.FC<ConfirmModalProps> = ({
     <div className="ind-modal-overlay" style={{ zIndex: 1100 }}>
       <div className="ind-confirm-modal">
         <div className="ind-confirm-header">
-          <span className="ind-confirm-icon">
+          <span className="ind-confirm-icon ind-confirm-icon-danger">
             <FontAwesomeIcon icon={faExclamationTriangle} />
           </span>
-          <h3 className="ind-confirm-title">Inativar Indicador</h3>
+          <h3 className="ind-confirm-title">Excluir Indicador</h3>
         </div>
         <div className="ind-confirm-body">
           <p>
-            Deseja inativar o indicador{' '}
+            Deseja excluir permanentemente o indicador{' '}
             <span className="ind-confirm-name">"{indicador.tituloResumido}"</span>?
           </p>
           <div className="ind-confirm-hint">
-            Esta ação realiza uma exclusão lógica. O indicador ficará inativo e não aparecerá
-            na listagem, mas seus dados permanecerão no sistema para fins de rastreabilidade.
+            Esta ação é <strong>irreversível</strong> e apagará todos os dados metodológicos
+            deste indicador definitivamente do sistema.
           </div>
         </div>
         <div className="ind-confirm-footer">
@@ -78,7 +78,7 @@ const ModalConfirmacaoInativacao: React.FC<ConfirmModalProps> = ({
             onClick={aoConfirmar}
             disabled={confirmando}
           >
-            {confirmando ? 'Inativando...' : 'Confirmar Inativação'}
+            {confirmando ? 'Excluindo...' : 'Confirmar Exclusão'}
           </button>
         </div>
       </div>
@@ -101,9 +101,9 @@ export const Indicadores: React.FC = () => {
   const [modalAberto, setModalAberto] = useState(false);
   const [indicadorEdicao, setIndicadorEdicao] = useState<Indicador | null>(null);
 
-  // Modal de confirmação de inativação
-  const [alvoInativacao, setAlvoInativacao] = useState<Indicador | null>(null);
-  const [inativando, setInativando] = useState(false);
+  // Modal de confirmação de exclusão
+  const [alvoExclusao, setAlvoExclusao] = useState<Indicador | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
 
   const carregarDados = useCallback(async () => {
     setCarregando(true);
@@ -139,19 +139,19 @@ export const Indicadores: React.FC = () => {
     }
   };
 
-  const handleConfirmarInativacao = async () => {
-    if (!alvoInativacao) return;
-    setInativando(true);
+  const handleConfirmarExclusao = async () => {
+    if (!alvoExclusao) return;
+    setExcluindo(true);
     try {
-      await inativarIndicador(alvoInativacao.id);
-      addToast('Indicador inativado com sucesso.', 'success');
-      setAlvoInativacao(null);
+      await excluirIndicador(alvoExclusao.id);
+      addToast('Indicador excluído permanentemente.', 'success');
+      setAlvoExclusao(null);
       carregarDados();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (erro: any) {
-      addToast(erro.message || 'Erro ao inativar indicador.', 'error');
+      addToast(erro.message || 'Erro ao excluir indicador.', 'error');
     } finally {
-      setInativando(false);
+      setExcluindo(false);
     }
   };
 
@@ -308,8 +308,8 @@ export const Indicadores: React.FC = () => {
                         </button>
                         <button
                           className="ind-btn ind-btn-danger ind-btn-sm"
-                          onClick={() => setAlvoInativacao(ind)}
-                          title="Inativar indicador"
+                          onClick={() => setAlvoExclusao(ind)}
+                          title="Excluir indicador"
                         >
                           <FontAwesomeIcon icon={faTrashAlt} />
                         </button>
@@ -332,12 +332,12 @@ export const Indicadores: React.FC = () => {
         titulo={indicadorEdicao ? 'Editar Indicador Metodológico' : 'Novo Cadastro de Indicador'}
       />
 
-      {/* Modal de Confirmação de Inativação */}
-      <ModalConfirmacaoInativacao
-        indicador={alvoInativacao}
-        confirmando={inativando}
-        aoConfirmar={handleConfirmarInativacao}
-        aoCancelar={() => setAlvoInativacao(null)}
+      {/* Modal de Confirmação de Exclusão */}
+      <ModalConfirmacaoExclusao
+        indicador={alvoExclusao}
+        confirmando={excluindo}
+        aoConfirmar={handleConfirmarExclusao}
+        aoCancelar={() => setAlvoExclusao(null)}
       />
     </div>
   );

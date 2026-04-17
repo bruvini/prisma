@@ -169,8 +169,8 @@ export const FormIndicadorModal: React.FC<Props> = ({ aberto, aoFechar, aoSalvar
           ))}
         </nav>
 
-        {/* Corpo com scroll */}
-        <form onSubmit={handleSubmit} style={{ display: 'contents' }}>
+        {/* Formulário — agora como container flex real para o layout do modal */}
+        <form onSubmit={handleSubmit} className="ind-modal-form">
           <div className="ind-modal-body" ref={bodyRef}>
 
             {/* SEÇÃO 1 — Contextualização */}
@@ -593,7 +593,6 @@ export const FormIndicadorModal: React.FC<Props> = ({ aberto, aoFechar, aoSalvar
 
           </div>
 
-          {/* Footer fixo */}
           <footer className="ind-modal-footer">
             <button type="button" className="ind-btn ind-btn-ghost" onClick={aoFechar} disabled={salvando}>
               Cancelar
